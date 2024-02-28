@@ -143,10 +143,10 @@ void CAN_User_Config(void)
 	sFilterConfig.FilterBank = 0;
 	sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
 	sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-	sFilterConfig.FilterIdHigh = 0x0368<<5;		//SID text priority		// DISPLAY_RESOURCE_GRANT
-	sFilterConfig.FilterIdLow = 0x03C0<<5;		//CD Changer control	// CDC_CONTROL
-	sFilterConfig.FilterMaskIdHigh = 0x06A1<<5;	//Audio head unit		// NODE_STATUS_RX_IHU
-	sFilterConfig.FilterMaskIdLow = 0x0290<<5;	//Buttons				// STEERING_WHEEL_BUTTONS
+	sFilterConfig.FilterIdHigh = 0x0368<<5;		  // SID text priority		// DISPLAY_RESOURCE_GRANT
+	sFilterConfig.FilterIdLow = 0x03C0<<5;		  // CD Changer control   // CDC_CONTROL
+	sFilterConfig.FilterMaskIdHigh = 0x06A1<<5;	// Audio head unit		  // NODE_STATUS_RX_IHU
+	sFilterConfig.FilterMaskIdLow = 0x0290<<5;	// Buttons				      // STEERING_WHEEL_BUTTONS
 	sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
 	sFilterConfig.FilterActivation = ENABLE;
 
@@ -192,8 +192,8 @@ void CAN_Send_Data(uint32_t ID, uint8_t data[8])
 	  }
 	  else
 	  {
-		uint16_t indERR = ( 100 << 8 ) + err_pin;
-		xQueueSend(indicatorQueueHandle, &indERR, 0);
+		  uint16_t indERR = ( 100 << 8 ) + err_pin;
+		  xQueueSend(indicatorQueueHandle, &indERR, 0);
 	  }
   }
 
@@ -203,8 +203,8 @@ void CAN_Send_Data(uint32_t ID, uint8_t data[8])
   }
   else
   {
-	uint16_t indTX = ( 10 << 8 ) + tx_pin;
-	xQueueSend(indicatorQueueHandle, &indTX, 0);
+	  uint16_t indTX = ( 10 << 8 ) + tx_pin;
+	  xQueueSend(indicatorQueueHandle, &indTX, 0);
   }
 }
 
@@ -223,5 +223,46 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		BaseType_t xHigherPriorityTaskWoken;
 		xQueueSendFromISR(indicatorQueueHandle, &indRX, &xHigherPriorityTaskWoken);
 	}
+
+  switch (RxHeader.StdId) 
+  {
+    case NODE_STATUS_RX_IHU:
+      xQueueSendToBackFromISR(nodeStatusQueueHandle, &RxData[3], 0);
+      break;
+
+    case CDC_CONTROL:
+      if (RxData[0] == 0x80)
+      {
+    	  xQueueSendToBackFromISR(cdcCtlQueueHandle, &RxData[1], 0);
+      }
+      break;
+
+    case STEERING_WHEEL_BUTTONS:
+      if (RxData[0] == 0x80)
+      {
+    	  if (RxData[2] != 0x00)
+        {
+    		  xQueueSendToBackFromISR(wheelBtnQueueHandle, &RxData[2], 0);	// In case Wheel buttons
+    	  }
+        else if (RxData[3] != 0x00)
+        {
+    		  xQueueSendToBackFromISR(sidBtnQueueHandle, &RxData[3], 0); 	  // In case SID buttons
+    	  }
+      }
+      break;
+
+    case DISPLAY_RESOURCE_GRANT:
+      if ((RxData[0] == (DESIRED_ROW & 0x0F)) && (RxData[1] == NODE_SID_FUNCTION_ID))
+      {
+    	  if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
+        {
+    		  Error_Handler();
+    	  }
+      }
+      break;
+
+    default:
+      break;
+  }
 }
 /* USER CODE END 1 */

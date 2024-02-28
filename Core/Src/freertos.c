@@ -136,8 +136,8 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-	  uint8_t cdcActiveStatus[] 	= {0xE0,0xFF,0x3F,0x41,0xFF,0xFF,0xFF,0xD0};
-//	  uint8_t cdcInactiveStatus[] 	= {0xE0,0xFF,0x3F,0x00,0x00,0x00,0x00,0xD0};
+	  uint8_t cdcActiveStatus[]   = {0xE0,0xFF,0x3F,0x41,0xFF,0xFF,0xFF,0xD0};
+	  uint8_t cdcInactiveStatus[] = {0xE0,0xFF,0x3F,0x00,0x00,0x00,0x00,0xD0};
   /* Infinite loop */
   for(;;)
   {
@@ -169,7 +169,7 @@ void StartIndicatorHandleTask(void const * argument)
 		uint8_t tx_delay;
 		uint8_t err_delay;
 	} delays = {0};
-    uint8_t* delays_val = (uint8_t*) &delays;
+  uint8_t* delays_val = (uint8_t*) &delays;
 
 	#define minEventLen 10
 
@@ -189,23 +189,19 @@ void StartIndicatorHandleTask(void const * argument)
     		{
     			delays_val[pin] = 0;
 
-				if (pin == rx_pin && HAL_GPIO_ReadPin(LEDRX_GPIO_Port, LEDRX_Pin))
-				{
-					HAL_GPIO_WritePin(LEDRX_GPIO_Port, LEDRX_Pin, GPIO_PIN_RESET);
-				}
-				else if (pin == tx_pin && HAL_GPIO_ReadPin(LEDTX_GPIO_Port, LEDTX_Pin))
-				{
-					HAL_GPIO_WritePin(LEDTX_GPIO_Port, LEDTX_Pin, GPIO_PIN_RESET);
-				}
-				else if (pin == err_pin && HAL_GPIO_ReadPin(LEDERR_GPIO_Port, LEDERR_Pin))
-				{
-					HAL_GPIO_WritePin(LEDERR_GPIO_Port, LEDERR_Pin, GPIO_PIN_RESET);
-				}
+          if (pin == rx_pin && HAL_GPIO_ReadPin(LEDRX_GPIO_Port, LEDRX_Pin))
+          {
+            HAL_GPIO_WritePin(LEDRX_GPIO_Port, LEDRX_Pin, GPIO_PIN_RESET);
+          }
+          else if (pin == tx_pin && HAL_GPIO_ReadPin(LEDTX_GPIO_Port, LEDTX_Pin))
+          {
+            HAL_GPIO_WritePin(LEDTX_GPIO_Port, LEDTX_Pin, GPIO_PIN_RESET);
+          }
+          else if (pin == err_pin && HAL_GPIO_ReadPin(LEDERR_GPIO_Port, LEDERR_Pin))
+          {
+            HAL_GPIO_WritePin(LEDERR_GPIO_Port, LEDERR_Pin, GPIO_PIN_RESET);
+          }
     		}
-    	}
-    	else
-    	{
-
     	}
     }
 
@@ -222,14 +218,17 @@ void StartIndicatorHandleTask(void const * argument)
     		HAL_GPIO_WritePin(LEDRX_GPIO_Port, LEDRX_Pin, GPIO_PIN_SET);
     		delays.rx_delay += delay;
     		break;
+        
     	case tx_pin:
     		HAL_GPIO_WritePin(LEDTX_GPIO_Port, LEDTX_Pin, GPIO_PIN_SET);
     		delays.tx_delay += delay;
     		break;
+
     	case err_pin:
     		HAL_GPIO_WritePin(LEDERR_GPIO_Port, LEDERR_Pin, GPIO_PIN_SET);
     		delays.err_delay += delay;
     		break;
+
     	default:
 
     		break;
