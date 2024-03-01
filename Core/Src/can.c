@@ -137,48 +137,48 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
 /* USER CODE BEGIN 1 */
 void CAN_User_Config(void)
 {
-	/* Configure the CAN Filter */
-	CAN_FilterTypeDef  sFilterConfig;
+  /* Configure the CAN Filter */
+  CAN_FilterTypeDef  sFilterConfig;
 
-	sFilterConfig.FilterBank = 0;
-	sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
-	sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-	sFilterConfig.FilterIdHigh = 0x0368<<5;		  // SID text priority		// DISPLAY_RESOURCE_GRANT
-	sFilterConfig.FilterIdLow = 0x03C0<<5;		  // CD Changer control   // CDC_CONTROL
-	sFilterConfig.FilterMaskIdHigh = 0x06A1<<5;	// Audio head unit		  // NODE_STATUS_RX_IHU
-	sFilterConfig.FilterMaskIdLow = 0x0290<<5;	// Buttons				      // STEERING_WHEEL_BUTTONS
-	sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-	sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.FilterBank = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+  sFilterConfig.FilterIdHigh = 0x0368<<5;		  // SID text priority		// DISPLAY_RESOURCE_GRANT
+  sFilterConfig.FilterIdLow = 0x03C0<<5;		  // CD Changer control   // CDC_CONTROL
+  sFilterConfig.FilterMaskIdHigh = 0x06A1<<5;	// Audio head unit		  // NODE_STATUS_RX_IHU
+  sFilterConfig.FilterMaskIdLow = 0x0290<<5;	// Buttons				      // STEERING_WHEEL_BUTTONS
+  sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+  sFilterConfig.FilterActivation = ENABLE;
 
-	if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
+  if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-	/* Start the CAN peripheral */
-	if (HAL_CAN_Start(&hcan) != HAL_OK)
-	{
-		Error_Handler();
-	}
+  /* Start the CAN peripheral */
+  if (HAL_CAN_Start(&hcan) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-	/* Activate CAN RX notification */
-	if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
-	{
-		Error_Handler();
-	}
+  /* Activate CAN RX notification */
+  if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-	if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO1_MSG_PENDING) != HAL_OK)
-	{
-		Error_Handler();
-	}
+  if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO1_MSG_PENDING) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-	/* Configure Transmission process */
-	TxHeader.StdId = 0x321;
-	TxHeader.ExtId = 0x00;
-	TxHeader.RTR = CAN_RTR_DATA;
-	TxHeader.IDE = CAN_ID_STD;
-	TxHeader.DLC = 8;
-	TxHeader.TransmitGlobalTime = DISABLE;
+  /* Configure Transmission process */
+  TxHeader.StdId = 0x321;
+  TxHeader.ExtId = 0x00;
+  TxHeader.RTR = CAN_RTR_DATA;
+  TxHeader.IDE = CAN_ID_STD;
+  TxHeader.DLC = 8;
+  TxHeader.TransmitGlobalTime = DISABLE;
 }
 
 void CAN_Send_Data(uint32_t ID, uint8_t data[8])
@@ -186,25 +186,25 @@ void CAN_Send_Data(uint32_t ID, uint8_t data[8])
   TxHeader.StdId = ID;
   if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0U)
   {
-	  if (HAL_CAN_AbortTxRequest(&hcan, TxMailbox) != HAL_OK)
-	  {
-		  Error_Handler();
-	  }
-	  else
-	  {
-		  uint16_t indERR = ( 100 << 8 ) + err_pin;
-		  xQueueSend(indicatorQueueHandle, &indERR, 0);
-	  }
+    if (HAL_CAN_AbortTxRequest(&hcan, TxMailbox) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    else
+    {
+      uint16_t indERR = ( 100 << 8 ) + err_pin;
+      xQueueSend(indicatorQueueHandle, &indERR, 0);
+    }
   }
 
   if (HAL_CAN_AddTxMessage(&hcan, &TxHeader, data, &TxMailbox) != HAL_OK)
   {
-	  Error_Handler();
+    Error_Handler();
   }
   else
   {
-	  uint16_t indTX = ( 10 << 8 ) + tx_pin;
-	  xQueueSend(indicatorQueueHandle, &indTX, 0);
+    uint16_t indTX = ( 10 << 8 ) + tx_pin;
+    xQueueSend(indicatorQueueHandle, &indTX, 0);
   }
 }
 
@@ -213,16 +213,16 @@ void CAN_Send_Data(uint32_t ID, uint8_t data[8])
  */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	else
-	{
-		uint16_t indRX = ( 10 << 8 ) + rx_pin;
-		BaseType_t xHigherPriorityTaskWoken;
-		xQueueSendFromISR(indicatorQueueHandle, &indRX, &xHigherPriorityTaskWoken);
-	}
+  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  else
+  {
+    uint16_t indRX = ( 10 << 8 ) + rx_pin;
+    BaseType_t xHigherPriorityTaskWoken;
+    xQueueSendFromISR(indicatorQueueHandle, &indRX, &xHigherPriorityTaskWoken);
+  }
 
   switch (RxHeader.StdId) 
   {
@@ -233,31 +233,31 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     case CDC_CONTROL:
       if (RxData[0] == 0x80)
       {
-    	  xQueueSendToBackFromISR(cdcCtlQueueHandle, &RxData[1], 0);
+        xQueueSendToBackFromISR(cdcCtlQueueHandle, &RxData[1], 0);
       }
       break;
 
     case STEERING_WHEEL_BUTTONS:
       if (RxData[0] == 0x80)
       {
-    	  if (RxData[2] != 0x00)
+        if (RxData[2] != 0x00)
         {
-    		  xQueueSendToBackFromISR(wheelBtnQueueHandle, &RxData[2], 0);	// In case Wheel buttons
-    	  }
+          xQueueSendToBackFromISR(wheelBtnQueueHandle, &RxData[2], 0);	// In case Wheel buttons
+        }
         else if (RxData[3] != 0x00)
         {
-    		  xQueueSendToBackFromISR(sidBtnQueueHandle, &RxData[3], 0); 	  // In case SID buttons
-    	  }
+          xQueueSendToBackFromISR(sidBtnQueueHandle, &RxData[3], 0); 	  // In case SID buttons
+        }
       }
       break;
 
     case DISPLAY_RESOURCE_GRANT:
       if ((RxData[0] == (DESIRED_ROW & 0x0F)) && (RxData[1] == NODE_SID_FUNCTION_ID))
       {
-    	  if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
+        if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
         {
-    		  Error_Handler();
-    	  }
+          Error_Handler();
+        }
       }
       break;
 
