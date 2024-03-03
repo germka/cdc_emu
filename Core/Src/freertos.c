@@ -82,7 +82,15 @@ uint8_t cdcInactiveStatusEvent[] = {
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId IndicatorHandleHandle;
+osThreadId nodeStatusTaskHandle;
+osThreadId cdcCtlTaskHandle;
+osThreadId wheelBtnHandleTHandle;
+osThreadId sidBtnHandleTaHandle;
 osMessageQId indicatorQueueHandle;
+osMessageQId nodeStatusQueueHandle;
+osMessageQId cdcCtlQueueHandle;
+osMessageQId wheelBtnQueueHandle;
+osMessageQId sidBtnQueueHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -91,6 +99,10 @@ osMessageQId indicatorQueueHandle;
 
 void StartDefaultTask(void const * argument);
 void StartIndicatorHandleTask(void const * argument);
+void StartNodeStatusTask(void const * argument);
+void StartCdcCtlTask(void const * argument);
+void StartWheelBtnHandleTask(void const * argument);
+void StartSidBtnHandleTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -137,6 +149,22 @@ void MX_FREERTOS_Init(void) {
   osMessageQDef(indicatorQueue, 16, uint16_t);
   indicatorQueueHandle = osMessageCreate(osMessageQ(indicatorQueue), NULL);
 
+  /* definition and creation of nodeStatusQueue */
+  osMessageQDef(nodeStatusQueue, 16, uint16_t);
+  nodeStatusQueueHandle = osMessageCreate(osMessageQ(nodeStatusQueue), NULL);
+
+  /* definition and creation of cdcCtlQueue */
+  osMessageQDef(cdcCtlQueue, 16, uint16_t);
+  cdcCtlQueueHandle = osMessageCreate(osMessageQ(cdcCtlQueue), NULL);
+
+  /* definition and creation of wheelBtnQueue */
+  osMessageQDef(wheelBtnQueue, 16, uint16_t);
+  wheelBtnQueueHandle = osMessageCreate(osMessageQ(wheelBtnQueue), NULL);
+
+  /* definition and creation of sidBtnQueue */
+  osMessageQDef(sidBtnQueue, 16, uint16_t);
+  sidBtnQueueHandle = osMessageCreate(osMessageQ(sidBtnQueue), NULL);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -149,6 +177,22 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of IndicatorHandle */
   osThreadDef(IndicatorHandle, StartIndicatorHandleTask, osPriorityIdle, 0, 128);
   IndicatorHandleHandle = osThreadCreate(osThread(IndicatorHandle), NULL);
+
+  /* definition and creation of nodeStatusTask */
+  osThreadDef(nodeStatusTask, StartNodeStatusTask, osPriorityIdle, 0, 128);
+  nodeStatusTaskHandle = osThreadCreate(osThread(nodeStatusTask), NULL);
+
+  /* definition and creation of cdcCtlTask */
+  osThreadDef(cdcCtlTask, StartCdcCtlTask, osPriorityIdle, 0, 128);
+  cdcCtlTaskHandle = osThreadCreate(osThread(cdcCtlTask), NULL);
+
+  /* definition and creation of wheelBtnHandleT */
+  osThreadDef(wheelBtnHandleT, StartWheelBtnHandleTask, osPriorityIdle, 0, 128);
+  wheelBtnHandleTHandle = osThreadCreate(osThread(wheelBtnHandleT), NULL);
+
+  /* definition and creation of sidBtnHandleTa */
+  osThreadDef(sidBtnHandleTa, StartSidBtnHandleTask, osPriorityIdle, 0, 128);
+  sidBtnHandleTaHandle = osThreadCreate(osThread(sidBtnHandleTa), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -265,103 +309,170 @@ void StartIndicatorHandleTask(void const * argument)
   /* USER CODE END StartIndicatorHandleTask */
 }
 
+/* USER CODE BEGIN Header_StartNodeStatusTask */
+/**
+* @brief Function implementing the nodeStatusTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartNodeStatusTask */
+void StartNodeStatusTask(void const * argument)
+{
+  /* USER CODE BEGIN StartNodeStatusTask */
+  /* Infinite loop */
+  for(;;)
+  {
+	  if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
+	  {
+	    osDelay(NODE_STATUS_TX_DELAY);
+	    switch (ReceivedValue & 0x0F)
+	    {
+	      case 0x3: //PowerOn
+	        for (uint8_t i=0; i<4; i++)
+	        {
+	          CAN_Send_Data(NODE_STATUS_TX_CDC, cdcPoweronCmd[i]);
+	          osDelay(NODE_STATUS_TX_INTERVAL);
+	        }
+	        break;
+	      case 0x2: //Active
+	        for (uint8_t i=0; i<4; i++)
+	        {
+	          CAN_Send_Data(NODE_STATUS_TX_CDC, cdcActiveCmd[i]);
+	          osDelay(NODE_STATUS_TX_INTERVAL);
+	        }
+	        break;
+	      case 0x8: //PowerOff
+	        for (uint8_t i=0; i<4; i++)
+	        {
+	          CAN_Send_Data(NODE_STATUS_TX_CDC, cdcPowerdownCmd[i]);
+	          osDelay(NODE_STATUS_TX_INTERVAL);
+	        }
+	        break;
+	      default:
+	        break;
+	    }
+	  }
+
+  }
+  /* USER CODE END StartNodeStatusTask */
+}
+
+/* USER CODE BEGIN Header_StartCdcCtlTask */
+/**
+* @brief Function implementing the cdcCtlTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCdcCtlTask */
+void StartCdcCtlTask(void const * argument)
+{
+  /* USER CODE BEGIN StartCdcCtlTask */
+  /* Infinite loop */
+  for(;;)
+  {
+	if (xQueueReceive(cdcCtlQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
+	{
+	switch (ReceivedValue)
+	{
+	  case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
+		cdcActive = true;
+		xSemaphoreGive(powerStateHandle);
+		break;
+	  case 0x14: // CDC = OFF (Back to Radio or Tape mode)
+		cdcActive = false;
+		xSemaphoreGive(powerStateHandle);
+		break;
+	  case 0x35: // Seek >>
+		NextTrack();
+		break;
+	  case 0x36: // Seek <<
+		PrevTrack();
+		break;
+	  case 0x59: // Next btn
+		break;
+	  case 0x45: // SEEK+ button long press on IHU
+		break;
+	  case 0x46: // SEEK- button long press on IHU
+		break;;
+	  case 0x84: // SEEK button (middle) long press on IHU
+		break;
+	  case 0x88: // > 2 second long press of SEEK button (middle) on IHU
+		break;
+	  case 0x76: // Random ON/OFF (Long press of CD/RDM button)
+		break;
+	  case 0x68:	// Change CD param
+		break;
+	  case 0xB0:	// Audio mute off
+		break;
+	  case 0xB1:	// Audio mute on
+		break;
+	  default:
+		break;
+	}
+	}
+  }
+  /* USER CODE END StartCdcCtlTask */
+}
+
+/* USER CODE BEGIN Header_StartWheelBtnHandleTask */
+/**
+* @brief Function implementing the wheelBtnHandleT thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartWheelBtnHandleTask */
+void StartWheelBtnHandleTask(void const * argument)
+{
+  /* USER CODE BEGIN StartWheelBtnHandleTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+    if (xQueueReceive(wheelBtnQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
+    {
+      switch (ReceivedValue)
+      {
+        case NEXT: // NXT button on wheel
+          PlayPause();
+          break;
+        case SEEK_NEXT: // Seek>> button on wheel
+    //				NextTrack();	//Reserved for long press and seek
+          break;
+        case SEEK_PREV: // Seek<< button on wheel
+    //				PrevTrack();	//Reserved for long press and seek
+          break;
+        default:
+          break;
+      }
+    }
+  }
+  /* USER CODE END StartWheelBtnHandleTask */
+}
+
+/* USER CODE BEGIN Header_StartSidBtnHandleTask */
+/**
+* @brief Function implementing the sidBtnHandleTa thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartSidBtnHandleTask */
+void StartSidBtnHandleTask(void const * argument)
+{
+  /* USER CODE BEGIN StartSidBtnHandleTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+    if (xQueueReceive(sidBtnQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
+    {
+      osDelay(10);
+    }
+  }
+  /* USER CODE END StartSidBtnHandleTask */
+}
+
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-
-if (xQueueReceive(nStatQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS) 
-{
-  osDelay(NODE_STATUS_TX_DELAY);
-  switch (ReceivedValue & 0x0F)
-  {
-    case 0x3: //PowerOn
-      for (uint8_t i=0; i<4; i++) 
-      {
-        CAN_Send_Data(NODE_STATUS_TX_CDC, cdcPoweronCmd[i]);
-        osDelay(NODE_STATUS_TX_INTERVAL);
-      }
-      break;
-    case 0x2: //Active
-      for (uint8_t i=0; i<4; i++) 
-      {
-        CAN_Send_Data(NODE_STATUS_TX_CDC, cdcActiveCmd[i]);
-        osDelay(NODE_STATUS_TX_INTERVAL);
-      }
-      break;
-    case 0x8: //PowerOff
-      for (uint8_t i=0; i<4; i++) 
-      {
-        CAN_Send_Data(NODE_STATUS_TX_CDC, cdcPowerdownCmd[i]);
-        osDelay(NODE_STATUS_TX_INTERVAL);
-      }
-      break;
-    default:
-      break;
-  }
-}
-
-if (xQueueReceive(cdcCtlQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
-{
-  switch (ReceivedValue) 
-  {
-    case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
-      cdcActive = true;
-      xSemaphoreGive(powerStateHandle);
-      break;
-    case 0x14: // CDC = OFF (Back to Radio or Tape mode)
-      cdcActive = false;
-      xSemaphoreGive(powerStateHandle);
-      break;
-    case 0x35: // Seek >>
-      NextTrack();
-      break;
-    case 0x36: // Seek <<
-      PrevTrack();
-      break;
-    case 0x59: // Next btn
-      break;
-    case 0x45: // SEEK+ button long press on IHU
-      break;
-    case 0x46: // SEEK- button long press on IHU
-      break;;
-    case 0x84: // SEEK button (middle) long press on IHU
-      break;
-    case 0x88: // > 2 second long press of SEEK button (middle) on IHU
-      break;
-    case 0x76: // Random ON/OFF (Long press of CD/RDM button)
-      break;
-    case 0x68:	// Change CD param
-      break;
-    case 0xB0:	// Audio mute off
-      break;
-    case 0xB1:	// Audio mute on
-      break;
-    default:
-      break;
-  }
-}
-
-if (xQueueReceive(wheelBtnQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
-{
-  switch (ReceivedValue)
-  {
-    case NEXT: // NXT button on wheel
-      PlayPause();
-      break;
-    case SEEK_NEXT: // Seek>> button on wheel
-//				NextTrack();	//Reserved for long press and seek
-      break;
-    case SEEK_PREV: // Seek<< button on wheel
-//				PrevTrack();	//Reserved for long press and seek
-      break;
-    default:
-      break;
-  }
-}
-
-if (xQueueReceive(sidBtnQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
-{
-  osDelay(10);
-}
 
 void Beep(uint8_t type)
 {
