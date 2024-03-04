@@ -487,7 +487,7 @@ void StartSidBtnHandleTask(void const * argument)
 {
   /* USER CODE BEGIN StartSidBtnHandleTask */
   const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
-	uint8_t ReceivedValue;
+  uint8_t ReceivedValue;
   /* Infinite loop */
   for(;;)
   {
