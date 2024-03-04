@@ -79,6 +79,14 @@ uint8_t cdcInactiveStatusEvent[] = {
   0x20,0xFF,0x3F,0x00,0x00,0x00,0x00,0xD0
 };
 
+typedef struct can_event_t
+{
+  uint16_t  data_id;
+  uint8_t*  data_ptr;
+  uint8_t   data_len;
+  uint8_t   priority;
+};
+
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId IndicatorHandleHandle;
@@ -319,9 +327,12 @@ void StartIndicatorHandleTask(void const * argument)
 void StartNodeStatusTask(void const * argument)
 {
   /* USER CODE BEGIN StartNodeStatusTask */
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
+	uint8_t ReceivedValue;
   /* Infinite loop */
   for(;;)
   {
+    osDelay(10);
 	  if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
 	  {
 	    osDelay(NODE_STATUS_TX_DELAY);
@@ -367,49 +378,52 @@ void StartNodeStatusTask(void const * argument)
 void StartCdcCtlTask(void const * argument)
 {
   /* USER CODE BEGIN StartCdcCtlTask */
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
+	uint8_t ReceivedValue;
   /* Infinite loop */
   for(;;)
   {
-	if (xQueueReceive(cdcCtlQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
-	{
-	switch (ReceivedValue)
-	{
-	  case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
-		cdcActive = true;
-		xSemaphoreGive(powerStateHandle);
-		break;
-	  case 0x14: // CDC = OFF (Back to Radio or Tape mode)
-		cdcActive = false;
-		xSemaphoreGive(powerStateHandle);
-		break;
-	  case 0x35: // Seek >>
-		NextTrack();
-		break;
-	  case 0x36: // Seek <<
-		PrevTrack();
-		break;
-	  case 0x59: // Next btn
-		break;
-	  case 0x45: // SEEK+ button long press on IHU
-		break;
-	  case 0x46: // SEEK- button long press on IHU
-		break;;
-	  case 0x84: // SEEK button (middle) long press on IHU
-		break;
-	  case 0x88: // > 2 second long press of SEEK button (middle) on IHU
-		break;
-	  case 0x76: // Random ON/OFF (Long press of CD/RDM button)
-		break;
-	  case 0x68:	// Change CD param
-		break;
-	  case 0xB0:	// Audio mute off
-		break;
-	  case 0xB1:	// Audio mute on
-		break;
-	  default:
-		break;
-	}
-	}
+    osDelay(10);
+    if (xQueueReceive(cdcCtlQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
+    {
+      switch (ReceivedValue)
+      {
+        case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
+        cdcActive = true;
+        xSemaphoreGive(powerStateHandle);
+        break;
+        case 0x14: // CDC = OFF (Back to Radio or Tape mode)
+        cdcActive = false;
+        xSemaphoreGive(powerStateHandle);
+        break;
+        case 0x35:  // Seek >>
+        NextTrack();
+        break;
+        case 0x36:  // Seek <<
+        PrevTrack();
+        break;
+        case 0x59:  // Next btn
+        break;
+        case 0x45:  // SEEK+ button long press on IHU
+        break;
+        case 0x46:  // SEEK- button long press on IHU
+        break;;
+        case 0x84:  // SEEK button (middle) long press on IHU
+        break;
+        case 0x88:  // > 2 second long press of SEEK button (middle) on IHU
+        break;
+        case 0x76:  // Random ON/OFF (Long press of CD/RDM button)
+        break;
+        case 0x68:  // Change CD param
+        break;
+        case 0xB0:  // Audio mute off
+        break;
+        case 0xB1:  // Audio mute on
+        break;
+        default:
+        break;
+      }
+    }
   }
   /* USER CODE END StartCdcCtlTask */
 }
@@ -424,10 +438,12 @@ void StartCdcCtlTask(void const * argument)
 void StartWheelBtnHandleTask(void const * argument)
 {
   /* USER CODE BEGIN StartWheelBtnHandleTask */
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
+	uint8_t ReceivedValue;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(10);
     if (xQueueReceive(wheelBtnQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
       switch (ReceivedValue)
@@ -435,11 +451,11 @@ void StartWheelBtnHandleTask(void const * argument)
         case NEXT: // NXT button on wheel
           PlayPause();
           break;
-        case SEEK_NEXT: // Seek>> button on wheel
-    //				NextTrack();	//Reserved for long press and seek
+        case SEEK_NEXT: // Seek >> button on wheel
+    //				NextTrack();	// Reserved for long press and seek
           break;
-        case SEEK_PREV: // Seek<< button on wheel
-    //				PrevTrack();	//Reserved for long press and seek
+        case SEEK_PREV: // Seek << button on wheel
+    //				PrevTrack();	// Reserved for long press and seek
           break;
         default:
           break;
@@ -459,10 +475,12 @@ void StartWheelBtnHandleTask(void const * argument)
 void StartSidBtnHandleTask(void const * argument)
 {
   /* USER CODE BEGIN StartSidBtnHandleTask */
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
+	uint8_t ReceivedValue;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(10);
     if (xQueueReceive(sidBtnQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
       osDelay(10);
@@ -473,6 +491,28 @@ void StartSidBtnHandleTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+void StartCanSenderTask(void const * argument)
+{
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
+  can_event_t canEvent = {0};
+  for (;;)
+  {
+    osDelay(10);
+    uint32_t sysTick = osKernelSysTick();
+    if (xQueueReceive(canEventQueueHandle, &canEvent, xTicksToWait) == pdPASS)
+    {
+      if (canEvent.data_ptr != NULL)
+      {
+        for (uint8_t i=0; i < canEvent.data_len; i++)
+        {
+          CAN_Send_Data(canEvent.data_id, cdcPoweronCmd[i]);
+          osDelay(NODE_STATUS_TX_INTERVAL);
+        }
+      }
+    }
+  }
+}
 
 void Beep(uint8_t type)
 {
@@ -550,4 +590,3 @@ void writeTextOnDisplay(char message[15])
 }
 
 /* USER CODE END Application */
-
