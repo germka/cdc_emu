@@ -1,6 +1,7 @@
 #ifndef __BLUETOOTH_H__
 #define __BLUETOOTH_H__
 #pragma once
+#include "stdbool.h"
 
 void NextTrack(void);
 void PrevTrack(void);

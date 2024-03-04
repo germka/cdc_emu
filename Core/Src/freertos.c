@@ -30,6 +30,7 @@
 #include "bluetooth.h"
 #include "gpio.h"
 #include <string.h>
+#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -80,13 +81,15 @@ uint8_t cdcInactiveStatusEvent[] = {
   0x20,0xFF,0x3F,0x00,0x00,0x00,0x00,0xD0
 };
 
+bool cdcActive;
+
 typedef struct can_event_t
 {
   uint16_t  data_id;
   uint8_t*  data_ptr;
   uint8_t   data_len;
   uint8_t   priority;
-};
+} can_event_t;
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -95,11 +98,14 @@ osThreadId nodeStatusTaskHandle;
 osThreadId cdcCtlTaskHandle;
 osThreadId wheelBtnHandleTHandle;
 osThreadId sidBtnHandleTaHandle;
+osThreadId canSenderTaskHandle;
 osMessageQId indicatorQueueHandle;
 osMessageQId nodeStatusQueueHandle;
 osMessageQId cdcCtlQueueHandle;
 osMessageQId wheelBtnQueueHandle;
 osMessageQId sidBtnQueueHandle;
+osMessageQId canEventQueueHandle;
+osSemaphoreId powerStateHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -112,6 +118,7 @@ void StartNodeStatusTask(void const * argument);
 void StartCdcCtlTask(void const * argument);
 void StartWheelBtnHandleTask(void const * argument);
 void StartSidBtnHandleTask(void const * argument);
+void StartCanSenderTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -145,6 +152,11 @@ void MX_FREERTOS_Init(void) {
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* definition and creation of powerState */
+  osSemaphoreDef(powerState);
+  powerStateHandle = osSemaphoreCreate(osSemaphore(powerState), 1);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -159,20 +171,24 @@ void MX_FREERTOS_Init(void) {
   indicatorQueueHandle = osMessageCreate(osMessageQ(indicatorQueue), NULL);
 
   /* definition and creation of nodeStatusQueue */
-  osMessageQDef(nodeStatusQueue, 16, uint16_t);
+  osMessageQDef(nodeStatusQueue, 16, uint8_t);
   nodeStatusQueueHandle = osMessageCreate(osMessageQ(nodeStatusQueue), NULL);
 
   /* definition and creation of cdcCtlQueue */
-  osMessageQDef(cdcCtlQueue, 16, uint16_t);
+  osMessageQDef(cdcCtlQueue, 16, uint8_t);
   cdcCtlQueueHandle = osMessageCreate(osMessageQ(cdcCtlQueue), NULL);
 
   /* definition and creation of wheelBtnQueue */
-  osMessageQDef(wheelBtnQueue, 16, uint16_t);
+  osMessageQDef(wheelBtnQueue, 16, uint8_t);
   wheelBtnQueueHandle = osMessageCreate(osMessageQ(wheelBtnQueue), NULL);
 
   /* definition and creation of sidBtnQueue */
-  osMessageQDef(sidBtnQueue, 16, uint16_t);
+  osMessageQDef(sidBtnQueue, 16, uint8_t);
   sidBtnQueueHandle = osMessageCreate(osMessageQ(sidBtnQueue), NULL);
+
+  /* definition and creation of canEventQueue */
+  osMessageQDef(canEventQueue, 16, can_event_t);
+  canEventQueueHandle = osMessageCreate(osMessageQ(canEventQueue), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -203,6 +219,10 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(sidBtnHandleTa, StartSidBtnHandleTask, osPriorityIdle, 0, 128);
   sidBtnHandleTaHandle = osThreadCreate(osThread(sidBtnHandleTa), NULL);
 
+  /* definition and creation of canSenderTask */
+  osThreadDef(canSenderTask, StartCanSenderTask, osPriorityIdle, 0, 128);
+  canSenderTaskHandle = osThreadCreate(osThread(canSenderTask), NULL);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -219,21 +239,20 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+  can_event_t cdcStatusEvent = {0};
+  cdcStatusEvent.data_id = GENERAL_STATUS_CDC;
+  cdcStatusEvent.priority = 0;
   /* Infinite loop */
   for (;;)
   {
-    osDelay(9);
+    osDelay(1);
     uint32_t sysTick = osKernelSysTick();
 
-    if (sysTick % 950 == 0)
+    if (sysTick % CDC_STATUS_TX_BASETIME == 0)
     {
-      // CAN_Send_Data(CDC_CONTROL, cdcActiveStatus);
-      can_event_t cdcStatusEvent = {0};
-      cdcStatusEvent.data_id = GENERAL_STATUS_CDC;
-      cdcStatusEvent.data_ptr = cdcActiveStatus;
+      cdcStatusEvent.data_ptr = cdcActive ? cdcActiveStatus : cdcInactiveStatus;
       cdcStatusEvent.data_len = sizeof(cdcActiveStatus);
-      cdcStatusEvent.priority = 0;
-      xQueueSend(canEventQueueHandle, &cdcStatusEvent, 0);
+      xQueueSendToBack(canEventQueueHandle, &cdcStatusEvent, 0);
     }
   }
   /* USER CODE END StartDefaultTask */
@@ -260,10 +279,11 @@ void StartIndicatorHandleTask(void const * argument)
   uint8_t *delays_val = (uint8_t *)&delays;
 
 #define minEventLen 10
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(minEventLen);
 
   for (;;)
   {
-    if (xQueueReceive(indicatorQueueHandle, &indEvent, minEventLen) != pdTRUE)
+    if (xQueueReceive(indicatorQueueHandle, &indEvent, xTicksToWait) != pdTRUE)
       indEvent = 0x00;
 
     // disable led's event
@@ -334,41 +354,31 @@ void StartNodeStatusTask(void const * argument)
   const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
   uint8_t ReceivedValue;
   can_event_t statusCanEvent = {0};
+  statusCanEvent.data_id = NODE_STATUS_TX_CDC;
+  statusCanEvent.priority = 0;
   /* Infinite loop */
   for (;;)
   {
     osDelay(10);
     if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
-      statusCanEvent.data_id = NODE_STATUS_TX_CDC;
+      uint32_t sysTick = osKernelSysTick();
       switch (ReceivedValue & 0x0F)
       {
       case 0x3: // PowerOn
-        for (uint8_t i = 0; i < 4; i++)
-        {
-          statusCanEvent.data_ptr = cdcPoweronCmd;
-          statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
-          statusCanEvent.priority = 0;
-          xQueueSend(canEventQueueHandle, &statusCanEvent, 0);
-        }
+        statusCanEvent.data_ptr = (uint8_t *) cdcPoweronCmd;
+        statusCanEvent.data_len = sizeof(cdcPoweronCmd);
+        xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
         break;
       case 0x2: // Active
-        for (uint8_t i = 0; i < 4; i++)
-        {
-          statusCanEvent.data_ptr = cdcActiveCmd;
-          statusCanEvent.data_len = sizeof(cdcActiveCmd);
-          statusCanEvent.priority = 0;
-          xQueueSend(canEventQueueHandle, &statusCanEvent, 0);
-        }
+        statusCanEvent.data_ptr = (uint8_t *) cdcActiveCmd;
+        statusCanEvent.data_len = sizeof(cdcActiveCmd);
+        xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
         break;
       case 0x8: // PowerOff
-        for (uint8_t i = 0; i < 4; i++)
-        {
-          statusCanEvent.data_ptr = cdcPowerdownCmd;
-          statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
-          statusCanEvent.priority = 0;
-          xQueueSend(canEventQueueHandle, &statusCanEvent, 0);
-        }
+        statusCanEvent.data_ptr = (uint8_t *) cdcPowerdownCmd;
+        statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
+        xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
         break;
       default:
         break;
@@ -463,10 +473,10 @@ void StartWheelBtnHandleTask(void const * argument)
         PlayPause();
         break;
       case SEEK_NEXT: // Seek >> button on wheel
-                      //				NextTrack();	// Reserved for long press and seek
+				// NextTrack();	// Reserved for long press and seek
         break;
       case SEEK_PREV: // Seek << button on wheel
-                      //				PrevTrack();	// Reserved for long press and seek
+        // PrevTrack();	// Reserved for long press and seek
         break;
       default:
         break;
@@ -500,30 +510,42 @@ void StartSidBtnHandleTask(void const * argument)
   /* USER CODE END StartSidBtnHandleTask */
 }
 
-/* Private application code --------------------------------------------------*/
-/* USER CODE BEGIN Application */
-
-void StartCanSenderTask(void const *argument)
+/* USER CODE BEGIN Header_StartCanSenderTask */
+/**
+* @brief Function implementing the canSenderTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCanSenderTask */
+void StartCanSenderTask(void const * argument)
 {
-  const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
+  /* USER CODE BEGIN StartCanSenderTask */
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(1000);
   can_event_t canEvent = {0};
+  uint8_t send_buf[CAN_DATA_LEN];
+  /* Infinite loop */
   for (;;)
   {
-    osDelay(10);
-    uint32_t sysTick = osKernelSysTick();
+    // uint32_t sysTick = osKernelSysTick();
     if (xQueueReceive(canEventQueueHandle, &canEvent, xTicksToWait) == pdPASS)
     {
       if (canEvent.data_ptr != NULL)
       {
         for (uint8_t i = 0; i < canEvent.data_len / CAN_DATA_LEN; i++)
         {
-          CAN_Send_Data(canEvent.data_id, canEvent.data_ptr + (i * CAN_DATA_LEN));
+          memcpy(send_buf, canEvent.data_ptr + (i * CAN_DATA_LEN), CAN_DATA_LEN);
+          CAN_Send_Data(canEvent.data_id, send_buf);
           osDelay(NODE_STATUS_TX_INTERVAL);
         }
+        memset(&canEvent, 0, sizeof(canEvent));
       }
     }
   }
+  /* USER CODE END StartCanSenderTask */
 }
+
+/* Private application code --------------------------------------------------*/
+/* USER CODE BEGIN Application */
 
 void Beep(uint8_t type)
 {
@@ -564,8 +586,7 @@ void requestTextOnDisplay(uint8_t type)
 
 void writeTextOnDisplay(char message[15])
 {
-  if (debug)
-  {
+
     if (cdcActive)
     {
       uint8_t defaultSIDtext[3][8] = {
@@ -597,7 +618,7 @@ void writeTextOnDisplay(char message[15])
         osDelay(10);
       }
     }
-  }
 }
 
 /* USER CODE END Application */
+

@@ -20,9 +20,9 @@ void NextTrack(void)
   {
     Beep(0x08);
   }
-  HAL_GPIO_WritePin(Next_GPIO_Port, Next_Pin, 1);
+  HAL_GPIO_WritePin(NEXT_GPIO_Port, NEXT_Pin, 1);
   osDelay(CSR_SHORT_PRESS);
-  HAL_GPIO_WritePin(Next_GPIO_Port, Next_Pin, 0);
+  HAL_GPIO_WritePin(NEXT_GPIO_Port, NEXT_Pin, 0);
 }
 
 void PrevTrack(void)
@@ -31,9 +31,9 @@ void PrevTrack(void)
   {
     Beep(0x10);
   }
-  HAL_GPIO_WritePin(Prev_GPIO_Port, Prev_Pin, 1);
+  HAL_GPIO_WritePin(PREV_GPIO_Port, PREV_Pin, 1);
   osDelay(CSR_SHORT_PRESS);
-  HAL_GPIO_WritePin(Prev_GPIO_Port, Prev_Pin, 0);
+  HAL_GPIO_WritePin(PREV_GPIO_Port, PREV_Pin, 0);
 }
 
 void PlayPause(void)
@@ -42,9 +42,9 @@ void PlayPause(void)
   {
     Beep(0x10);
   }
-  HAL_GPIO_WritePin(Play_Pause_GPIO_Port, Play_Pause_Pin, 1);
+  HAL_GPIO_WritePin(PLAY_GPIO_Port, PLAY_Pin, 1);
   osDelay(CSR_SHORT_PRESS);
-  HAL_GPIO_WritePin(Play_Pause_GPIO_Port, Play_Pause_Pin, 0);
+  HAL_GPIO_WritePin(PLAY_GPIO_Port, PLAY_Pin, 0);
 }
 
 // TODO: add funcs for bt discoverable and another states by whell and SID btns combinations

@@ -23,12 +23,18 @@
 /* USER CODE BEGIN 0 */
 #include "gpio.h"
 #include "cmsis_os.h"
+#include "CDC.h"
 CAN_TxHeaderTypeDef   TxHeader;
 CAN_RxHeaderTypeDef   RxHeader;
 uint8_t               TxData[8];
 uint8_t               RxData[8];
 uint32_t              TxMailbox;
 
+extern osMessageQId nodeStatusQueueHandle;
+extern osMessageQId cdcCtlQueueHandle;
+extern osMessageQId wheelBtnQueueHandle;
+extern osMessageQId sidBtnQueueHandle;
+extern osMessageQId canEventQueueHandle;
 extern osMessageQId indicatorQueueHandle;
 /* USER CODE END 0 */
 
@@ -54,7 +60,7 @@ void MX_CAN_Init(void)
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = DISABLE;
   hcan.Init.AutoWakeUp = DISABLE;
-  hcan.Init.AutoRetransmission = DISABLE;
+  hcan.Init.AutoRetransmission = ENABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
   hcan.Init.TransmitFifoPriority = DISABLE;
   if (HAL_CAN_Init(&hcan) != HAL_OK)
@@ -251,10 +257,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   case DISPLAY_RESOURCE_GRANT:
     if ((RxData[0] == (DESIRED_ROW & 0x0F)) && (RxData[1] == NODE_SID_FUNCTION_ID))
     {
-      if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
-      {
-        Error_Handler();
-      }
+//      if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
+//      {
+//        Error_Handler();
+//      }
     }
     break;
   default:
