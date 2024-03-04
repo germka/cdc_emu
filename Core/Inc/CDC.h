@@ -26,6 +26,7 @@
 
 #ifndef CDC_H
 #define CDC_H
+#pragma once
 
 /**
  * Various constants used for SID text control
@@ -73,6 +74,12 @@
 #define NPANEL		0x08
 #define CLOCK_UP	0x04
 #define CLOCK_DOWN	0x02
+
+/**
+ * frame parameters
+ */
+
+#define CAN_DATA_LEN    8
 
 /**
  * TX frames:

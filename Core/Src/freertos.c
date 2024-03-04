@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "can.h"
 #include "CDC.h"
+#include "bluetooth.h"
 #include "gpio.h"
 #include <string.h>
 /* USER CODE END Includes */
@@ -219,14 +220,20 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
-    osDelay(1);
+    osDelay(9);
     uint32_t sysTick = osKernelSysTick();
 
     if (sysTick % 950 == 0)
     {
-      CAN_Send_Data(CDC_CONTROL, cdcActiveStatus);
+      // CAN_Send_Data(CDC_CONTROL, cdcActiveStatus);
+      can_event_t cdcStatusEvent = {0};
+      cdcStatusEvent.data_id = GENERAL_STATUS_CDC;
+      cdcStatusEvent.data_ptr = cdcActiveStatus;
+      cdcStatusEvent.data_len = sizeof(cdcActiveStatus);
+      cdcStatusEvent.priority = 0;
+      xQueueSend(canEventQueueHandle, &cdcStatusEvent, 0);
     }
   }
   /* USER CODE END StartDefaultTask */
@@ -244,16 +251,17 @@ void StartIndicatorHandleTask(void const * argument)
   /* USER CODE BEGIN StartIndicatorHandleTask */
   /* Infinite loop */
   uint16_t indEvent = 0;
-  struct {
+  struct
+  {
     uint8_t rx_delay;
     uint8_t tx_delay;
     uint8_t err_delay;
   } delays = {0};
-  uint8_t* delays_val = (uint8_t*) &delays;
+  uint8_t *delays_val = (uint8_t *)&delays;
 
-  #define minEventLen 10
+#define minEventLen 10
 
-  for(;;)
+  for (;;)
   {
     if (xQueueReceive(indicatorQueueHandle, &indEvent, minEventLen) != pdTRUE)
       indEvent = 0x00;
@@ -294,24 +302,20 @@ void StartIndicatorHandleTask(void const * argument)
     // enable led's event
     switch (pin)
     {
-      case rx_pin:
-        HAL_GPIO_WritePin(LEDRX_GPIO_Port, LEDRX_Pin, GPIO_PIN_SET);
-        delays.rx_delay += delay;
-        break;
-
-      case tx_pin:
-        HAL_GPIO_WritePin(LEDTX_GPIO_Port, LEDTX_Pin, GPIO_PIN_SET);
-        delays.tx_delay += delay;
-        break;
-
-      case err_pin:
-        HAL_GPIO_WritePin(LEDERR_GPIO_Port, LEDERR_Pin, GPIO_PIN_SET);
-        delays.err_delay += delay;
-        break;
-
-      default:
-
-        break;
+    case rx_pin:
+      HAL_GPIO_WritePin(LEDRX_GPIO_Port, LEDRX_Pin, GPIO_PIN_SET);
+      delays.rx_delay += delay;
+      break;
+    case tx_pin:
+      HAL_GPIO_WritePin(LEDTX_GPIO_Port, LEDTX_Pin, GPIO_PIN_SET);
+      delays.tx_delay += delay;
+      break;
+    case err_pin:
+      HAL_GPIO_WritePin(LEDERR_GPIO_Port, LEDERR_Pin, GPIO_PIN_SET);
+      delays.err_delay += delay;
+      break;
+    default:
+      break;
     }
   }
   /* USER CODE END StartIndicatorHandleTask */
@@ -328,42 +332,48 @@ void StartNodeStatusTask(void const * argument)
 {
   /* USER CODE BEGIN StartNodeStatusTask */
   const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
-	uint8_t ReceivedValue;
+  uint8_t ReceivedValue;
+  can_event_t statusCanEvent = {0};
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(10);
-	  if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
-	  {
-	    osDelay(NODE_STATUS_TX_DELAY);
-	    switch (ReceivedValue & 0x0F)
-	    {
-	      case 0x3: //PowerOn
-	        for (uint8_t i=0; i<4; i++)
-	        {
-	          CAN_Send_Data(NODE_STATUS_TX_CDC, cdcPoweronCmd[i]);
-	          osDelay(NODE_STATUS_TX_INTERVAL);
-	        }
-	        break;
-	      case 0x2: //Active
-	        for (uint8_t i=0; i<4; i++)
-	        {
-	          CAN_Send_Data(NODE_STATUS_TX_CDC, cdcActiveCmd[i]);
-	          osDelay(NODE_STATUS_TX_INTERVAL);
-	        }
-	        break;
-	      case 0x8: //PowerOff
-	        for (uint8_t i=0; i<4; i++)
-	        {
-	          CAN_Send_Data(NODE_STATUS_TX_CDC, cdcPowerdownCmd[i]);
-	          osDelay(NODE_STATUS_TX_INTERVAL);
-	        }
-	        break;
-	      default:
-	        break;
-	    }
-	  }
-
+    if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
+    {
+      statusCanEvent.data_id = NODE_STATUS_TX_CDC;
+      switch (ReceivedValue & 0x0F)
+      {
+      case 0x3: // PowerOn
+        for (uint8_t i = 0; i < 4; i++)
+        {
+          statusCanEvent.data_ptr = cdcPoweronCmd;
+          statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
+          statusCanEvent.priority = 0;
+          xQueueSend(canEventQueueHandle, &statusCanEvent, 0);
+        }
+        break;
+      case 0x2: // Active
+        for (uint8_t i = 0; i < 4; i++)
+        {
+          statusCanEvent.data_ptr = cdcActiveCmd;
+          statusCanEvent.data_len = sizeof(cdcActiveCmd);
+          statusCanEvent.priority = 0;
+          xQueueSend(canEventQueueHandle, &statusCanEvent, 0);
+        }
+        break;
+      case 0x8: // PowerOff
+        for (uint8_t i = 0; i < 4; i++)
+        {
+          statusCanEvent.data_ptr = cdcPowerdownCmd;
+          statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
+          statusCanEvent.priority = 0;
+          xQueueSend(canEventQueueHandle, &statusCanEvent, 0);
+        }
+        break;
+      default:
+        break;
+      }
+    }
   }
   /* USER CODE END StartNodeStatusTask */
 }
@@ -379,48 +389,49 @@ void StartCdcCtlTask(void const * argument)
 {
   /* USER CODE BEGIN StartCdcCtlTask */
   const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
-	uint8_t ReceivedValue;
+  uint8_t ReceivedValue;
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(10);
     if (xQueueReceive(cdcCtlQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
       switch (ReceivedValue)
       {
-        case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
+      case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
         cdcActive = true;
         xSemaphoreGive(powerStateHandle);
         break;
-        case 0x14: // CDC = OFF (Back to Radio or Tape mode)
+      case 0x14: // CDC = OFF (Back to Radio or Tape mode)
         cdcActive = false;
         xSemaphoreGive(powerStateHandle);
         break;
-        case 0x35:  // Seek >>
+      case 0x35: // Seek >>
         NextTrack();
         break;
-        case 0x36:  // Seek <<
+      case 0x36: // Seek <<
         PrevTrack();
         break;
-        case 0x59:  // Next btn
+      case 0x59: // Next btn
         break;
-        case 0x45:  // SEEK+ button long press on IHU
+      case 0x45: // SEEK+ button long press on IHU
         break;
-        case 0x46:  // SEEK- button long press on IHU
-        break;;
-        case 0x84:  // SEEK button (middle) long press on IHU
+      case 0x46: // SEEK- button long press on IHU
         break;
-        case 0x88:  // > 2 second long press of SEEK button (middle) on IHU
+        ;
+      case 0x84: // SEEK button (middle) long press on IHU
         break;
-        case 0x76:  // Random ON/OFF (Long press of CD/RDM button)
+      case 0x88: // > 2 second long press of SEEK button (middle) on IHU
         break;
-        case 0x68:  // Change CD param
+      case 0x76: // Random ON/OFF (Long press of CD/RDM button)
         break;
-        case 0xB0:  // Audio mute off
+      case 0x68: // Change CD param
         break;
-        case 0xB1:  // Audio mute on
+      case 0xB0: // Audio mute off
         break;
-        default:
+      case 0xB1: // Audio mute on
+        break;
+      default:
         break;
       }
     }
@@ -439,26 +450,26 @@ void StartWheelBtnHandleTask(void const * argument)
 {
   /* USER CODE BEGIN StartWheelBtnHandleTask */
   const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
-	uint8_t ReceivedValue;
+  uint8_t ReceivedValue;
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(10);
     if (xQueueReceive(wheelBtnQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
       switch (ReceivedValue)
       {
-        case NEXT: // NXT button on wheel
-          PlayPause();
-          break;
-        case SEEK_NEXT: // Seek >> button on wheel
-    //				NextTrack();	// Reserved for long press and seek
-          break;
-        case SEEK_PREV: // Seek << button on wheel
-    //				PrevTrack();	// Reserved for long press and seek
-          break;
-        default:
-          break;
+      case NEXT: // NXT button on wheel
+        PlayPause();
+        break;
+      case SEEK_NEXT: // Seek >> button on wheel
+                      //				NextTrack();	// Reserved for long press and seek
+        break;
+      case SEEK_PREV: // Seek << button on wheel
+                      //				PrevTrack();	// Reserved for long press and seek
+        break;
+      default:
+        break;
       }
     }
   }
@@ -492,7 +503,7 @@ void StartSidBtnHandleTask(void const * argument)
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
-void StartCanSenderTask(void const * argument)
+void StartCanSenderTask(void const *argument)
 {
   const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
   can_event_t canEvent = {0};
@@ -504,9 +515,9 @@ void StartCanSenderTask(void const * argument)
     {
       if (canEvent.data_ptr != NULL)
       {
-        for (uint8_t i=0; i < canEvent.data_len; i++)
+        for (uint8_t i = 0; i < canEvent.data_len / CAN_DATA_LEN; i++)
         {
-          CAN_Send_Data(canEvent.data_id, cdcPoweronCmd[i]);
+          CAN_Send_Data(canEvent.data_id, canEvent.data_ptr + (i * CAN_DATA_LEN));
           osDelay(NODE_STATUS_TX_INTERVAL);
         }
       }
@@ -553,40 +564,40 @@ void requestTextOnDisplay(uint8_t type)
 
 void writeTextOnDisplay(char message[15])
 {
-	if (debug) 
+  if (debug)
   {
-		if (cdcActive) 
+    if (cdcActive)
     {
-			uint8_t defaultSIDtext[3][8] = {
-			  {0x42,0x96,DESIRED_ROW,'B','l','u','e','t'},
-			  {0x01,0x96,DESIRED_ROW,'o','o','t','h',0x20},
-			  {0x00,0x96,DESIRED_ROW,0x20,0x20,0x00,0x00,0x00}
+      uint8_t defaultSIDtext[3][8] = {
+          {0x42, 0x96, DESIRED_ROW, 'B', 'l', 'u', 'e', 't'},
+          {0x01, 0x96, DESIRED_ROW, 'o', 'o', 't', 'h', 0x20},
+          {0x00, 0x96, DESIRED_ROW, 0x20, 0x20, 0x00, 0x00, 0x00}
       };
-			if (message != NULL) 
+      if (message != NULL)
       {
-				for (uint8_t s=0; s<3; s++) 
+        for (uint8_t s = 0; s < 3; s++)
         {
-					for (uint8_t r=3; r<8; r++) 
+          for (uint8_t r = 3; r < 8; r++)
           {
-						if (message[5*s+(r-3)] != '\0') 
+            if (message[5 * s + (r - 3)] != '\0')
             {
-							defaultSIDtext[s][r] = message[5*s+(r-3)];
-						} 
-            else 
+              defaultSIDtext[s][r] = message[5 * s + (r - 3)];
+            }
+            else
             {
-							defaultSIDtext[s][r] = 0x20;
-							break;
-						}
-					}
-				}
-			}
-			for (uint8_t k=0; k<3; k++)
+              defaultSIDtext[s][r] = 0x20;
+              break;
+            }
+          }
+        }
+      }
+      for (uint8_t k = 0; k < 3; k++)
       {
         CAN_Send_Data(NODE_WRITE_TEXT_ON_DISPLAY, defaultSIDtext[k]);
         osDelay(10);
-			}
-		}
-	}
+      }
+    }
+  }
 }
 
 /* USER CODE END Application */

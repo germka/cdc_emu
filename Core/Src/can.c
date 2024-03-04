@@ -181,7 +181,7 @@ void CAN_User_Config(void)
   TxHeader.TransmitGlobalTime = DISABLE;
 }
 
-void CAN_Send_Data(uint32_t ID, uint8_t data[8])
+void CAN_Send_Data(uint32_t ID, uint8_t data[CAN_DATA_LEN])
 {
   TxHeader.StdId = ID;
   if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0U)
@@ -219,50 +219,46 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
   else
   {
-    uint16_t indRX = ( 10 << 8 ) + rx_pin;
+    uint16_t indRX = (10 << 8) + rx_pin;
     BaseType_t xHigherPriorityTaskWoken;
     xQueueSendFromISR(indicatorQueueHandle, &indRX, &xHigherPriorityTaskWoken);
   }
 
-  switch (RxHeader.StdId) 
+  switch (RxHeader.StdId)
   {
-    case NODE_STATUS_RX_IHU:
-      xQueueSendToBackFromISR(nodeStatusQueueHandle, &RxData[3], 0);
-      break;
-
-    case CDC_CONTROL:
-      if (RxData[0] == 0x80)
+  case NODE_STATUS_RX_IHU:
+    xQueueSendToBackFromISR(nodeStatusQueueHandle, &RxData[3], 0);
+    break;
+  case CDC_CONTROL:
+    if (RxData[0] == 0x80)
+    {
+      xQueueSendToBackFromISR(cdcCtlQueueHandle, &RxData[1], 0);
+    }
+    break;
+  case STEERING_WHEEL_BUTTONS:
+    if (RxData[0] == 0x80)
+    {
+      if (RxData[2] != 0x00)
       {
-        xQueueSendToBackFromISR(cdcCtlQueueHandle, &RxData[1], 0);
+        xQueueSendToBackFromISR(wheelBtnQueueHandle, &RxData[2], 0); // In case Wheel buttons
       }
-      break;
-
-    case STEERING_WHEEL_BUTTONS:
-      if (RxData[0] == 0x80)
+      else if (RxData[3] != 0x00)
       {
-        if (RxData[2] != 0x00)
-        {
-          xQueueSendToBackFromISR(wheelBtnQueueHandle, &RxData[2], 0);	// In case Wheel buttons
-        }
-        else if (RxData[3] != 0x00)
-        {
-          xQueueSendToBackFromISR(sidBtnQueueHandle, &RxData[3], 0); 	  // In case SID buttons
-        }
+        xQueueSendToBackFromISR(sidBtnQueueHandle, &RxData[3], 0); // In case SID buttons
       }
-      break;
-
-    case DISPLAY_RESOURCE_GRANT:
-      if ((RxData[0] == (DESIRED_ROW & 0x0F)) && (RxData[1] == NODE_SID_FUNCTION_ID))
+    }
+    break;
+  case DISPLAY_RESOURCE_GRANT:
+    if ((RxData[0] == (DESIRED_ROW & 0x0F)) && (RxData[1] == NODE_SID_FUNCTION_ID))
+    {
+      if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
       {
-        if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
-        {
-          Error_Handler();
-        }
+        Error_Handler();
       }
-      break;
-
-    default:
-      break;
+    }
+    break;
+  default:
+    break;
   }
 }
 /* USER CODE END 1 */
