@@ -93,12 +93,13 @@ typedef struct can_event_t
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
-osThreadId IndicatorHandleHandle;
+osThreadId indicatorHandleTaskHandle;
 osThreadId nodeStatusTaskHandle;
 osThreadId cdcCtlTaskHandle;
-osThreadId wheelBtnHandleTHandle;
-osThreadId sidBtnHandleTaHandle;
+osThreadId wheelBtnHandleTaskHandle;
+osThreadId sidBtnHandleTaskHandle;
 osThreadId canSenderTaskHandle;
+osThreadId audioPwrMngTaskHandle;
 osMessageQId indicatorQueueHandle;
 osMessageQId nodeStatusQueueHandle;
 osMessageQId cdcCtlQueueHandle;
@@ -119,6 +120,7 @@ void StartCdcCtlTask(void const * argument);
 void StartWheelBtnHandleTask(void const * argument);
 void StartSidBtnHandleTask(void const * argument);
 void StartCanSenderTask(void const * argument);
+void StartAudioPwrMngTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -199,9 +201,9 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
-  /* definition and creation of IndicatorHandle */
-  osThreadDef(IndicatorHandle, StartIndicatorHandleTask, osPriorityIdle, 0, 128);
-  IndicatorHandleHandle = osThreadCreate(osThread(IndicatorHandle), NULL);
+  /* definition and creation of indicatorHandleTask */
+  osThreadDef(indicatorHandleTask, StartIndicatorHandleTask, osPriorityIdle, 0, 128);
+  indicatorHandleTaskHandle = osThreadCreate(osThread(indicatorHandleTask), NULL);
 
   /* definition and creation of nodeStatusTask */
   osThreadDef(nodeStatusTask, StartNodeStatusTask, osPriorityIdle, 0, 128);
@@ -211,17 +213,21 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(cdcCtlTask, StartCdcCtlTask, osPriorityIdle, 0, 128);
   cdcCtlTaskHandle = osThreadCreate(osThread(cdcCtlTask), NULL);
 
-  /* definition and creation of wheelBtnHandleT */
-  osThreadDef(wheelBtnHandleT, StartWheelBtnHandleTask, osPriorityIdle, 0, 128);
-  wheelBtnHandleTHandle = osThreadCreate(osThread(wheelBtnHandleT), NULL);
+  /* definition and creation of wheelBtnHandleTask */
+  osThreadDef(wheelBtnHandleTask, StartWheelBtnHandleTask, osPriorityIdle, 0, 128);
+  wheelBtnHandleTaskHandle = osThreadCreate(osThread(wheelBtnHandleTask), NULL);
 
-  /* definition and creation of sidBtnHandleTa */
-  osThreadDef(sidBtnHandleTa, StartSidBtnHandleTask, osPriorityIdle, 0, 128);
-  sidBtnHandleTaHandle = osThreadCreate(osThread(sidBtnHandleTa), NULL);
+  /* definition and creation of sidBtnHandleTask */
+  osThreadDef(sidBtnHandleTask, StartSidBtnHandleTask, osPriorityIdle, 0, 128);
+  sidBtnHandleTaskHandle = osThreadCreate(osThread(sidBtnHandleTask), NULL);
 
   /* definition and creation of canSenderTask */
   osThreadDef(canSenderTask, StartCanSenderTask, osPriorityIdle, 0, 128);
   canSenderTaskHandle = osThreadCreate(osThread(canSenderTask), NULL);
+
+  /* definition and creation of audioPwrMngTask */
+  osThreadDef(audioPwrMngTask, StartAudioPwrMngTask, osPriorityIdle, 0, 128);
+  audioPwrMngTaskHandle = osThreadCreate(osThread(audioPwrMngTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -473,7 +479,7 @@ void StartWheelBtnHandleTask(void const * argument)
         PlayPause();
         break;
       case SEEK_NEXT: // Seek >> button on wheel
-				// NextTrack();	// Reserved for long press and seek
+        // NextTrack();	// Reserved for long press and seek
         break;
       case SEEK_PREV: // Seek << button on wheel
         // PrevTrack();	// Reserved for long press and seek
@@ -542,6 +548,28 @@ void StartCanSenderTask(void const * argument)
     }
   }
   /* USER CODE END StartCanSenderTask */
+}
+
+/* USER CODE BEGIN Header_StartAudioPwrMngTask */
+/**
+* @brief Function implementing the audioPwrMngTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartAudioPwrMngTask */
+void StartAudioPwrMngTask(void const * argument)
+{
+  /* USER CODE BEGIN StartAudioPwrMngTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    if (xSemaphoreTake(powerStateHandle, 500)) {
+    audioPower(cdcActive);
+    } else {
+      osDelay(10);
+    }
+  }
+  /* USER CODE END StartAudioPwrMngTask */
 }
 
 /* Private application code --------------------------------------------------*/
