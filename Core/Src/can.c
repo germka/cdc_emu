@@ -267,4 +267,19 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     break;
   }
 }
+
+
+void Beep(uint8_t type)
+{
+  //0x04    Short "Beep"
+  //0x08    "Tack"
+  //0x10    "Tick"
+  //0x40    Short "Ding-Dong"
+  static uint8_t msg_beep[] = {
+    0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+  };
+  msg_beep[1] = type;
+  CAN_Send_Data(SOUND_REQUEST, msg_beep);
+}
+
 /* USER CODE END 1 */

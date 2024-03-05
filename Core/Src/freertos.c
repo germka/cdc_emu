@@ -547,19 +547,6 @@ void StartCanSenderTask(void const * argument)
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
-void Beep(uint8_t type)
-{
-  //0x04    Short "Beep"
-  //0x08    "Tack"
-  //0x10    "Tick"
-  //0x40    Short "Ding-Dong"
-  static uint8_t msg_beep[] = {
-    0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-  };
-  msg_beep[1] = type;
-  CAN_Send_Data(SOUND_REQUEST, msg_beep);
-}
-
 void requestTextOnDisplay(uint8_t type)
 {
   /* Format of NODE_DISPLAY_RESOURCE_REQ frame:

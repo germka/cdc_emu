@@ -1,7 +1,12 @@
 #ifndef __BLUETOOTH_H__
 #define __BLUETOOTH_H__
 #pragma once
+
+#include "stm32f1xx_hal.h"
+#include "cmsis_os.h"
+#include "main.h"
 #include "stdbool.h"
+#include "can.h"
 
 void NextTrack(void);
 void PrevTrack(void);

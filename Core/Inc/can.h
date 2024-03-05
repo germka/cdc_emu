@@ -43,6 +43,7 @@ void MX_CAN_Init(void);
 /* USER CODE BEGIN Prototypes */
 void CAN_User_Config(void);
 void CAN_Send_Data(uint32_t ID, uint8_t data[8]);
+void Beep(uint8_t type);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
