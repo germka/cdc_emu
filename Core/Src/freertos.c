@@ -260,7 +260,9 @@ void StartDefaultTask(void const * argument)
       cdcStatusEvent.data_ptr = cdcActive ? cdcActiveStatus : cdcInactiveStatus;
       cdcStatusEvent.data_len = sizeof(cdcActiveStatus);
       xQueueSendToBack(canEventQueueHandle, &cdcStatusEvent, 0);
+#ifdef UART_LOGGING
       uart_log("Sending CAN cdc %s status event", cdcActive ? "active" : "inactive");
+#endif
     }
   }
   /* USER CODE END StartDefaultTask */
@@ -376,19 +378,25 @@ void StartNodeStatusTask(void const * argument)
         statusCanEvent.data_ptr = (uint8_t *) cdcPoweronCmd;
         statusCanEvent.data_len = sizeof(cdcPoweronCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
+#ifdef UART_LOGGING
         uart_log("Sending CAN node %s status event", "power on");
+#endif
         break;
       case 0x2: // Active
         statusCanEvent.data_ptr = (uint8_t *) cdcActiveCmd;
         statusCanEvent.data_len = sizeof(cdcActiveCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
+#ifdef UART_LOGGING
         uart_log("Sending CAN node %s status event", "active");
+#endif
         break;
       case 0x8: // PowerOff
         statusCanEvent.data_ptr = (uint8_t *) cdcPowerdownCmd;
         statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
+#ifdef UART_LOGGING
         uart_log("Sending CAN node %s status event", "power off");
+#endif
         break;
       default:
         break;
@@ -421,12 +429,16 @@ void StartCdcCtlTask(void const * argument)
       case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
         cdcActive = true;
         xSemaphoreGive(powerStateHandle);
+#ifdef UART_LOGGING
         uart_log("Received cdc ctl %s event", "ON");
+#endif
         break;
       case 0x14: // CDC = OFF (Back to Radio or Tape mode)
         cdcActive = false;
         xSemaphoreGive(powerStateHandle);
+#ifdef UART_LOGGING
         uart_log("Received cdc ctl %s event", "OFF");
+#endif
         break;
       case 0x35: // Seek >>
         NextTrack();
@@ -571,7 +583,9 @@ void StartAudioPwrMngTask(void const * argument)
   {
     if (xSemaphoreTake(powerStateHandle, 500)) {
     audioPower(cdcActive);
+#ifdef UART_LOGGING
       uart_log("Switch audio power %s", cdcActive ? "ON" : "OFF");
+#endif
     } else {
       osDelay(10);
     }
@@ -647,7 +661,9 @@ void writeTextOnDisplay(char message[15])
  */
 void enterSleep(void)
 {
+#ifdef UART_LOGGING
   uart_log("Switch to power save mode");
+#endif
 #ifdef POWER_SAVE_MODE
   HAL_SuspendTick();
   HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
@@ -663,7 +679,9 @@ void resumeWork(void)
 #ifdef POWER_SAVE_MODE
   HAL_ResumeTick();
 #endif
+#ifdef UART_LOGGING
   uart_log("Switch to normal mode");
+#endif
 }
 
 /* USER CODE END Application */
