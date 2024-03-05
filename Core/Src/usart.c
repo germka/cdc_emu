@@ -118,18 +118,20 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
-void uart_log(uint8_t* message, ...)
+void uart_log(const char* message, ...)
 {
+#ifdef UART_LOGGING
   char format_str[128 - 15];
   char echo_str[128];
   va_list a;
   va_start(a, message);
-  vsnprintf(format_str, sizeof(format_str), (const char*) message, a);
+  vsnprintf(format_str, sizeof(format_str), message, a);
   va_end(a);
 
   uint32_t sysTick = osKernelSysTick();
   snprintf(echo_str, sizeof(echo_str), "%06d.%03d: %s\r\n", (int) sysTick / 1000, (int) sysTick % 1000, format_str);
 
   HAL_UART_Transmit(&huart1, (const uint8_t*) echo_str, strlen(echo_str), 0);
+#endif
 }
 /* USER CODE END 1 */

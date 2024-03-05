@@ -31,6 +31,7 @@
 #include "gpio.h"
 #include <string.h>
 #include "stdbool.h"
+#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -259,6 +260,7 @@ void StartDefaultTask(void const * argument)
       cdcStatusEvent.data_ptr = cdcActive ? cdcActiveStatus : cdcInactiveStatus;
       cdcStatusEvent.data_len = sizeof(cdcActiveStatus);
       xQueueSendToBack(canEventQueueHandle, &cdcStatusEvent, 0);
+      uart_log("Sending CAN cdc %s status event", cdcActive ? "active" : "inactive");
     }
   }
   /* USER CODE END StartDefaultTask */
@@ -368,23 +370,25 @@ void StartNodeStatusTask(void const * argument)
     osDelay(10);
     if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
-      uint32_t sysTick = osKernelSysTick();
       switch (ReceivedValue & 0x0F)
       {
       case 0x3: // PowerOn
         statusCanEvent.data_ptr = (uint8_t *) cdcPoweronCmd;
         statusCanEvent.data_len = sizeof(cdcPoweronCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
+        uart_log("Sending CAN node %s status event", "power on");
         break;
       case 0x2: // Active
         statusCanEvent.data_ptr = (uint8_t *) cdcActiveCmd;
         statusCanEvent.data_len = sizeof(cdcActiveCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
+        uart_log("Sending CAN node %s status event", "active");
         break;
       case 0x8: // PowerOff
         statusCanEvent.data_ptr = (uint8_t *) cdcPowerdownCmd;
         statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
+        uart_log("Sending CAN node %s status event", "power off");
         break;
       default:
         break;
@@ -417,10 +421,12 @@ void StartCdcCtlTask(void const * argument)
       case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
         cdcActive = true;
         xSemaphoreGive(powerStateHandle);
+        uart_log("Received cdc ctl %s event", "ON");
         break;
       case 0x14: // CDC = OFF (Back to Radio or Tape mode)
         cdcActive = false;
         xSemaphoreGive(powerStateHandle);
+        uart_log("Received cdc ctl %s event", "OFF");
         break;
       case 0x35: // Seek >>
         NextTrack();
@@ -565,6 +571,7 @@ void StartAudioPwrMngTask(void const * argument)
   {
     if (xSemaphoreTake(powerStateHandle, 500)) {
     audioPower(cdcActive);
+      uart_log("Switch audio power %s", cdcActive ? "ON" : "OFF");
     } else {
       osDelay(10);
     }
@@ -601,38 +608,62 @@ void requestTextOnDisplay(uint8_t type)
 
 void writeTextOnDisplay(char message[15])
 {
-
-    if (cdcActive)
+  if (cdcActive)
+  {
+    uint8_t defaultSIDtext[3][8] = {
+        {0x42, 0x96, DESIRED_ROW, 'B', 'l', 'u', 'e', 't'},
+        {0x01, 0x96, DESIRED_ROW, 'o', 'o', 't', 'h', 0x20},
+        {0x00, 0x96, DESIRED_ROW, 0x20, 0x20, 0x00, 0x00, 0x00}
+    };
+    if (message != NULL)
     {
-      uint8_t defaultSIDtext[3][8] = {
-          {0x42, 0x96, DESIRED_ROW, 'B', 'l', 'u', 'e', 't'},
-          {0x01, 0x96, DESIRED_ROW, 'o', 'o', 't', 'h', 0x20},
-          {0x00, 0x96, DESIRED_ROW, 0x20, 0x20, 0x00, 0x00, 0x00}
-      };
-      if (message != NULL)
+      for (uint8_t s = 0; s < 3; s++)
       {
-        for (uint8_t s = 0; s < 3; s++)
+        for (uint8_t r = 3; r < 8; r++)
         {
-          for (uint8_t r = 3; r < 8; r++)
+          if (message[5 * s + (r - 3)] != '\0')
           {
-            if (message[5 * s + (r - 3)] != '\0')
-            {
-              defaultSIDtext[s][r] = message[5 * s + (r - 3)];
-            }
-            else
-            {
-              defaultSIDtext[s][r] = 0x20;
-              break;
-            }
+            defaultSIDtext[s][r] = message[5 * s + (r - 3)];
+          }
+          else
+          {
+            defaultSIDtext[s][r] = 0x20;
+            break;
           }
         }
       }
-      for (uint8_t k = 0; k < 3; k++)
-      {
-        CAN_Send_Data(NODE_WRITE_TEXT_ON_DISPLAY, defaultSIDtext[k]);
-        osDelay(10);
-      }
     }
+    for (uint8_t k = 0; k < 3; k++)
+    {
+      CAN_Send_Data(NODE_WRITE_TEXT_ON_DISPLAY, defaultSIDtext[k]);
+      osDelay(10);
+    }
+  }
+}
+
+/**
+ * @brief Set core to sleep power save mode
+ * Wake up from any interrupt
+ */
+void enterSleep(void)
+{
+  uart_log("Switch to power save mode");
+#ifdef POWER_SAVE_MODE
+  HAL_SuspendTick();
+  HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+#endif
+}
+
+/**
+ * @brief Resume core from power save mode
+ * 
+ */
+void resumeWork(void)
+{
+#ifdef POWER_SAVE_MODE
+  HAL_ResumeTick();
+#endif
+  uart_log("Switch to normal mode");
 }
 
 /* USER CODE END Application */
