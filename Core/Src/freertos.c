@@ -190,7 +190,7 @@ void MX_FREERTOS_Init(void) {
   sidBtnQueueHandle = osMessageCreate(osMessageQ(sidBtnQueue), NULL);
 
   /* definition and creation of canEventQueue */
-  osMessageQDef(canEventQueue, 16, can_event_t);
+  osMessageQDef(canEventQueue, 3, can_event_t);
   canEventQueueHandle = osMessageCreate(osMessageQ(canEventQueue), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -372,6 +372,9 @@ void StartNodeStatusTask(void const * argument)
     osDelay(10);
     if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
+#ifdef UART_LOGGING
+      uart_log("Received CAN node status 0x%02X request", ReceivedValue & 0x0F);
+#endif
       switch (ReceivedValue & 0x0F)
       {
       case 0x3: // PowerOn
@@ -550,7 +553,6 @@ void StartCanSenderTask(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-    // uint32_t sysTick = osKernelSysTick();
     if (xQueueReceive(canEventQueueHandle, &canEvent, xTicksToWait) == pdPASS)
     {
       if (canEvent.data_ptr != NULL)

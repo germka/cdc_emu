@@ -149,10 +149,10 @@ void CAN_User_Config(void)
   sFilterConfig.FilterBank = 0;
   sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
   sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-  sFilterConfig.FilterIdHigh = 0x0368<<5;		  // SID text priority		// DISPLAY_RESOURCE_GRANT
-  sFilterConfig.FilterIdLow = 0x03C0<<5;		  // CD Changer control   // CDC_CONTROL
-  sFilterConfig.FilterMaskIdHigh = 0x06A1<<5;	// Audio head unit		  // NODE_STATUS_RX_IHU
-  sFilterConfig.FilterMaskIdLow = 0x0290<<5;	// Buttons				      // STEERING_WHEEL_BUTTONS
+  sFilterConfig.FilterIdHigh = 0x0368<<5;     // SID text priority    // DISPLAY_RESOURCE_GRANT
+  sFilterConfig.FilterIdLow = 0x03C0<<5;      // CD Changer control   // CDC_CONTROL
+  sFilterConfig.FilterMaskIdHigh = 0x06A1<<5; // Audio head unit      // NODE_STATUS_RX_IHU
+  sFilterConfig.FilterMaskIdLow = 0x0290<<5;  // Buttons              // STEERING_WHEEL_BUTTONS
   sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
   sFilterConfig.FilterActivation = ENABLE;
 
