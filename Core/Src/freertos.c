@@ -273,6 +273,7 @@ void StartDefaultTask(void const * argument)
     {
       cdcActive = false;
       xSemaphoreGive(powerStateHandle);
+      // Wait for gpio have effect
       osDelay(10);
       enterSleep();
     }
@@ -681,6 +682,8 @@ void enterSleep(void)
   uart_log("Switch to power save mode");
 #endif
 #ifdef POWER_SAVE_MODE
+  // Save systick for resume success
+  canRXTimestamp = sysTick;
   HAL_SuspendTick();
   HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 #endif
