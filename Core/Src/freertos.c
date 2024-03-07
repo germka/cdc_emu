@@ -82,7 +82,10 @@ uint8_t cdcInactiveStatusEvent[] = {
   0x20,0xFF,0x3F,0x00,0x00,0x00,0x00,0xD0
 };
 
-bool cdcActive;
+bool cdcActive = false;
+uint32_t canRXTimestamp = 0;
+
+#define CAN_INACTIVE_TIMEOUT pdMS_TO_TICKS(30000)
 
 typedef struct can_event_t
 {
@@ -111,7 +114,7 @@ osSemaphoreId powerStateHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+void enterSleep(void);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
@@ -246,6 +249,7 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+  uint32_t sysTick = 0;
   can_event_t cdcStatusEvent = {0};
   cdcStatusEvent.data_id = GENERAL_STATUS_CDC;
   cdcStatusEvent.priority = 0;
@@ -253,7 +257,7 @@ void StartDefaultTask(void const * argument)
   for (;;)
   {
     osDelay(1);
-    uint32_t sysTick = osKernelSysTick();
+    sysTick = osKernelSysTick();
 
     if (sysTick % CDC_STATUS_TX_BASETIME == 0)
     {
@@ -263,6 +267,14 @@ void StartDefaultTask(void const * argument)
 #ifdef UART_LOGGING
       uart_log("Sending CAN cdc %s status event", cdcActive ? "active" : "inactive");
 #endif
+    }
+
+    if (sysTick > canRXTimestamp + CAN_INACTIVE_TIMEOUT)
+    {
+      cdcActive = false;
+      xSemaphoreGive(powerStateHandle);
+      osDelay(10);
+      enterSleep();
     }
   }
   /* USER CODE END StartDefaultTask */
@@ -333,6 +345,8 @@ void StartIndicatorHandleTask(void const * argument)
     switch (pin)
     {
     case rx_pin:
+      // Save message timestamp
+      canRXTimestamp = osKernelSysTick();
       HAL_GPIO_WritePin(LEDRX_GPIO_Port, LEDRX_Pin, GPIO_PIN_SET);
       delays.rx_delay += delay;
       break;
@@ -672,6 +686,7 @@ void enterSleep(void)
 #endif
 }
 
+#if 0 // Mooved to interrupt definitions file
 /**
  * @brief Resume core from power save mode
  * 
@@ -685,6 +700,7 @@ void resumeWork(void)
   uart_log("Switch to normal mode");
 #endif
 }
+#endif
 
 /* USER CODE END Application */
 
