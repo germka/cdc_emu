@@ -131,6 +131,21 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
 void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
+/* USER CODE BEGIN PREPOSTSLEEP */
+__weak void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
+{
+/* place for user code */
+  HAL_SuspendTick();
+  HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+}
+
+__weak void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
+{
+/* place for user code */
+  HAL_ResumeTick();
+}
+/* USER CODE END PREPOSTSLEEP */
+
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
@@ -250,33 +265,47 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
   uint32_t sysTick = 0;
+  uint32_t eventTime = 0;
   can_event_t cdcStatusEvent = {0};
   cdcStatusEvent.data_id = GENERAL_STATUS_CDC;
   cdcStatusEvent.priority = 0;
   /* Infinite loop */
   for (;;)
   {
-    osDelay(1);
+    osDelay(10);
     sysTick = osKernelSysTick();
 
-    if (sysTick % CDC_STATUS_TX_BASETIME == 0)
+    if (sysTick > eventTime)
     {
+      eventTime += CDC_STATUS_TX_BASETIME;
       cdcStatusEvent.data_ptr = cdcActive ? cdcActiveStatus : cdcInactiveStatus;
       cdcStatusEvent.data_len = sizeof(cdcActiveStatus);
       xQueueSendToBack(canEventQueueHandle, &cdcStatusEvent, 0);
 #ifdef UART_LOGGING
-      uart_log("Sending CAN cdc %s status event", cdcActive ? "active" : "inactive");
+      uart_log("[can] Sending cdc [%s] status", cdcActive ? "active" : "inactive");
 #endif
     }
-
+#if 0
+    if (sysTick > canRXTimestamp + 5000)
+	{
+    	canRXTimestamp = osKernelSysTick();
+    	portSUPPRESS_TICKS_AND_SLEEP(pdMS_TO_TICKS(500));
+	}
+#endif
+#ifdef POWER_SAVE_MODE
     if (sysTick > canRXTimestamp + CAN_INACTIVE_TIMEOUT)
     {
       cdcActive = false;
       xSemaphoreGive(powerStateHandle);
       // Wait for gpio have effect
       osDelay(10);
-      enterSleep();
+#ifdef UART_LOGGING
+      uart_log("[pwr] Switch to power save mode");
+#endif
+      // Save systick for resume success
+      canRXTimestamp = osKernelSysTick();
     }
+#endif
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -388,7 +417,7 @@ void StartNodeStatusTask(void const * argument)
     if (xQueueReceive(nodeStatusQueueHandle, &ReceivedValue, xTicksToWait) == pdPASS)
     {
 #ifdef UART_LOGGING
-      uart_log("Received CAN node status 0x%02X request", ReceivedValue & 0x0F);
+      uart_log("[req] Received node status 0x%02X", ReceivedValue & 0x0F);
 #endif
       switch (ReceivedValue & 0x0F)
       {
@@ -397,7 +426,7 @@ void StartNodeStatusTask(void const * argument)
         statusCanEvent.data_len = sizeof(cdcPoweronCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
 #ifdef UART_LOGGING
-        uart_log("Sending CAN node %s status event", "power on");
+        uart_log("[can] Sending node [%s] status", "power on");
 #endif
         break;
       case 0x2: // Active
@@ -405,7 +434,7 @@ void StartNodeStatusTask(void const * argument)
         statusCanEvent.data_len = sizeof(cdcActiveCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
 #ifdef UART_LOGGING
-        uart_log("Sending CAN node %s status event", "active");
+        uart_log("[can] Sending node [%s] status", "active");
 #endif
         break;
       case 0x8: // PowerOff
@@ -413,7 +442,7 @@ void StartNodeStatusTask(void const * argument)
         statusCanEvent.data_len = sizeof(cdcPowerdownCmd);
         xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
 #ifdef UART_LOGGING
-        uart_log("Sending CAN node %s status event", "power off");
+        uart_log("[can] Sending node [%s] status", "power off");
 #endif
         break;
       default:
@@ -448,15 +477,17 @@ void StartCdcCtlTask(void const * argument)
         cdcActive = true;
         xSemaphoreGive(powerStateHandle);
 #ifdef UART_LOGGING
-        uart_log("Received cdc ctl %s event", "ON");
+        uart_log("[ctl] Received cdc [%s] event", "ON");
 #endif
+        audioPower(cdcActive);
         break;
       case 0x14: // CDC = OFF (Back to Radio or Tape mode)
         cdcActive = false;
         xSemaphoreGive(powerStateHandle);
 #ifdef UART_LOGGING
-        uart_log("Received cdc ctl %s event", "OFF");
+        uart_log("[ctl] Received cdc [%s] event", "OFF");
 #endif
+        audioPower(cdcActive);
         break;
       case 0x35: // Seek >>
         NextTrack();
@@ -568,6 +599,7 @@ void StartCanSenderTask(void const * argument)
   /* Infinite loop */
   for (;;)
   {
+    osDelay(10);
     if (xQueueReceive(canEventQueueHandle, &canEvent, xTicksToWait) == pdPASS)
     {
       if (canEvent.data_ptr != NULL)
@@ -596,14 +628,20 @@ void StartAudioPwrMngTask(void const * argument)
 {
   /* USER CODE BEGIN StartAudioPwrMngTask */
   /* Infinite loop */
-  for(;;)
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(500);
+
+  for (;;)
   {
-    if (xSemaphoreTake(powerStateHandle, 500)) {
-    audioPower(cdcActive);
+    osDelay(10);
+    if (xSemaphoreTake(powerStateHandle, xTicksToWait) == pdTRUE)
+    {
+      audioPower(cdcActive);
 #ifdef UART_LOGGING
-      uart_log("Switch audio power %s", cdcActive ? "ON" : "OFF");
+      uart_log("[pwr] Switch audio [%s]", cdcActive ? "ON" : "OFF");
 #endif
-    } else {
+    }
+    else
+    {
       osDelay(10);
     }
   }
@@ -672,6 +710,7 @@ void writeTextOnDisplay(char message[15])
   }
 }
 
+#if 0
 /**
  * @brief Set core to sleep power save mode
  * Wake up from any interrupt
@@ -679,17 +718,17 @@ void writeTextOnDisplay(char message[15])
 void enterSleep(void)
 {
 #ifdef UART_LOGGING
-  uart_log("Switch to power save mode");
+  uart_log("[pwr] Switch to power save mode");
 #endif
 #ifdef POWER_SAVE_MODE
   // Save systick for resume success
-  canRXTimestamp = sysTick;
+  canRXTimestamp = osKernelSysTick();
   HAL_SuspendTick();
   HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+  HAL_ResumeTick();
 #endif
 }
 
-#if 0 // Mooved to interrupt definitions file
 /**
  * @brief Resume core from power save mode
  * 
@@ -700,7 +739,7 @@ void resumeWork(void)
   HAL_ResumeTick();
 #endif
 #ifdef UART_LOGGING
-  uart_log("Switch to normal mode");
+  uart_log("[pwr] Switch to normal mode");
 #endif
 }
 #endif

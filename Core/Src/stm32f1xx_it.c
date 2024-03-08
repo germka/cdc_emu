@@ -181,7 +181,7 @@ void USB_HP_CAN1_TX_IRQHandler(void)
 void USB_LP_CAN1_RX0_IRQHandler(void)
 {
   /* USER CODE BEGIN USB_LP_CAN1_RX0_IRQn 0 */
-  resumeWork();
+
   /* USER CODE END USB_LP_CAN1_RX0_IRQn 0 */
   HAL_CAN_IRQHandler(&hcan);
   /* USER CODE BEGIN USB_LP_CAN1_RX0_IRQn 1 */
@@ -218,18 +218,4 @@ void TIM4_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-/**
- * @brief Resume core from power save mode
- * 
- */
-void resumeWork(void)
-{
-#ifdef POWER_SAVE_MODE
-  HAL_ResumeTick();
-#endif
-#ifdef UART_LOGGING
-#warning UART use from interrupt!
-  uart_log("Switch to normal mode");
-#endif
-}
 /* USER CODE END 1 */
