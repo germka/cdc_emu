@@ -95,6 +95,8 @@ typedef struct can_event_t
   uint8_t   priority;
 } can_event_t;
 
+extern bool can_offline;
+
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId indicatorHandleTaskHandle;
@@ -104,6 +106,7 @@ osThreadId wheelBtnHandleTaskHandle;
 osThreadId sidBtnHandleTaskHandle;
 osThreadId canSenderTaskHandle;
 osThreadId audioPwrMngTaskHandle;
+osThreadId idleTaskHandle;
 osMessageQId indicatorQueueHandle;
 osMessageQId nodeStatusQueueHandle;
 osMessageQId cdcCtlQueueHandle;
@@ -125,26 +128,12 @@ void StartWheelBtnHandleTask(void const * argument);
 void StartSidBtnHandleTask(void const * argument);
 void StartCanSenderTask(void const * argument);
 void StartAudioPwrMngTask(void const * argument);
+void StartIdleTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
 void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
-
-/* USER CODE BEGIN PREPOSTSLEEP */
-__weak void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
-{
-/* place for user code */
-  HAL_SuspendTick();
-  HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-}
-
-__weak void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
-{
-/* place for user code */
-  HAL_ResumeTick();
-}
-/* USER CODE END PREPOSTSLEEP */
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
@@ -248,6 +237,10 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(audioPwrMngTask, StartAudioPwrMngTask, osPriorityIdle, 0, 128);
   audioPwrMngTaskHandle = osThreadCreate(osThread(audioPwrMngTask), NULL);
 
+  /* definition and creation of idleTask */
+  osThreadDef(idleTask, StartIdleTask, osPriorityIdle, 0, 128);
+  idleTaskHandle = osThreadCreate(osThread(idleTask), NULL);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -275,7 +268,7 @@ void StartDefaultTask(void const * argument)
     osDelay(10);
     sysTick = osKernelSysTick();
 
-    if (sysTick > eventTime)
+    if (!can_offline && sysTick > eventTime)
     {
       eventTime += CDC_STATUS_TX_BASETIME;
       cdcStatusEvent.data_ptr = cdcActive ? cdcActiveStatus : cdcInactiveStatus;
@@ -479,7 +472,7 @@ void StartCdcCtlTask(void const * argument)
 #ifdef UART_LOGGING
         uart_log("[ctl] Received cdc [%s] event", "ON");
 #endif
-        audioPower(cdcActive);
+//        audioPower(cdcActive);
         break;
       case 0x14: // CDC = OFF (Back to Radio or Tape mode)
         cdcActive = false;
@@ -487,7 +480,7 @@ void StartCdcCtlTask(void const * argument)
 #ifdef UART_LOGGING
         uart_log("[ctl] Received cdc [%s] event", "OFF");
 #endif
-        audioPower(cdcActive);
+//        audioPower(cdcActive);
         break;
       case 0x35: // Seek >>
         NextTrack();
@@ -596,19 +589,29 @@ void StartCanSenderTask(void const * argument)
   const TickType_t xTicksToWait = pdMS_TO_TICKS(1000);
   can_event_t canEvent = {0};
   uint8_t send_buf[CAN_DATA_LEN];
+  uint8_t frameCount;
   /* Infinite loop */
   for (;;)
   {
     osDelay(10);
     if (xQueueReceive(canEventQueueHandle, &canEvent, xTicksToWait) == pdPASS)
     {
-      if (canEvent.data_ptr != NULL)
+      if (canEvent.data_ptr != NULL && canEvent.data_len >= CAN_DATA_LEN)
       {
-        for (uint8_t i = 0; i < canEvent.data_len / CAN_DATA_LEN; i++)
+	    frameCount = canEvent.data_len / CAN_DATA_LEN;
+
+        for (uint8_t i = 1; i <= frameCount; i++)
         {
-          memcpy(send_buf, canEvent.data_ptr + (i * CAN_DATA_LEN), CAN_DATA_LEN);
+          memcpy(send_buf, canEvent.data_ptr + (( i - 1 ) * CAN_DATA_LEN), CAN_DATA_LEN);
           CAN_Send_Data(canEvent.data_id, send_buf);
-          osDelay(NODE_STATUS_TX_INTERVAL);
+          if (i < frameCount) // Skip delay after last frame
+          {
+            osDelay(NODE_STATUS_TX_INTERVAL);
+          }
+          else
+          {
+            osDelay(30);
+          }
         }
         memset(&canEvent, 0, sizeof(canEvent));
       }
@@ -646,6 +649,24 @@ void StartAudioPwrMngTask(void const * argument)
     }
   }
   /* USER CODE END StartAudioPwrMngTask */
+}
+
+/* USER CODE BEGIN Header_StartIdleTask */
+/**
+* @brief Function implementing the idleTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartIdleTask */
+void StartIdleTask(void const * argument)
+{
+  /* USER CODE BEGIN StartIdleTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(0xFFFF);
+  }
+  /* USER CODE END StartIdleTask */
 }
 
 /* Private application code --------------------------------------------------*/

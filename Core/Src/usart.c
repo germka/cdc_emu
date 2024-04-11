@@ -26,7 +26,7 @@
 #include "stdio.h"
 #include "cmsis_os.h"
 
-char format_str[128 - 15] = {0};
+char format_str[128 - 17] = {0};
 char echo_str[128] = {0};
 /* USER CODE END 0 */
 

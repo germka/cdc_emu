@@ -58,7 +58,7 @@ void audioPower(bool state)
        !HAL_GPIO_ReadPin(AMPEN_GPIO_Port, AMPEN_Pin)))
   {
     HAL_GPIO_WritePin(BTEN_GPIO_Port, BTEN_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(AMPEN_GPIO_Port, AMPEN_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(AMPENA_GPIO_Port, AMPENA_Pin, GPIO_PIN_SET);
     if (CONFIRMATION_SOUND)
     {
       Beep(0x04);
@@ -67,6 +67,6 @@ void audioPower(bool state)
   else if (!state)
   {
     HAL_GPIO_WritePin(BTEN_GPIO_Port, BTEN_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(AMPEN_GPIO_Port, AMPEN_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(AMPENA_GPIO_Port, AMPENA_Pin, GPIO_PIN_RESET);
   }
 }

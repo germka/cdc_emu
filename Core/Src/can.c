@@ -24,6 +24,7 @@
 #include "gpio.h"
 #include "cmsis_os.h"
 #include "CDC.h"
+#include "stdbool.h"
 
 CAN_TxHeaderTypeDef   TxHeader;
 CAN_RxHeaderTypeDef   RxHeader;
@@ -31,12 +32,25 @@ uint8_t               TxData[8];
 uint8_t               RxData[8];
 uint32_t              TxMailbox;
 
+extern bool cdcActive;
+
+extern osSemaphoreId powerStateHandle;
+
 extern osMessageQId nodeStatusQueueHandle;
 extern osMessageQId cdcCtlQueueHandle;
 extern osMessageQId wheelBtnQueueHandle;
 extern osMessageQId sidBtnQueueHandle;
 extern osMessageQId canEventQueueHandle;
 extern osMessageQId indicatorQueueHandle;
+
+BaseType_t xHigherPriorityTaskWoken;
+
+uint16_t indRX;
+uint16_t indTX;
+uint16_t indERR;
+
+uint8_t can_tx_err_cnt = 0;
+bool can_offline = false;
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -188,29 +202,53 @@ void CAN_User_Config(void)
   TxHeader.TransmitGlobalTime = DISABLE;
 }
 
-void CAN_Send_Data(uint32_t ID, uint8_t data[CAN_DATA_LEN])
+void CAN_GO_Offline(void)
 {
-  TxHeader.StdId = ID;
-  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0U)
+  can_offline = true;
+  xQueueReset(canEventQueueHandle);
+  for (uint8_t i = HAL_CAN_GetTxMailboxesFreeLevel(&hcan); i < 3; i++)
   {
     if (HAL_CAN_AbortTxRequest(&hcan, TxMailbox) != HAL_OK)
     {
-      Error_Handler();
+      break;
     }
-    else
+  }
+}
+
+void CAN_Send_Data(uint32_t ID, uint8_t data[CAN_DATA_LEN])
+{
+  TxHeader.StdId = ID;
+#if 0	// debug offline mode
+  uint8_t m_cnt = uxQueueMessagesWaiting(canEventQueueHandle);
+  uint8_t e_cnt = uxQueueMessagesWaiting(indicatorQueueHandle);
+#endif
+  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0U)
+  {
+    indERR = ( 30 << 8 ) + err_pin;
+    xQueueSend(indicatorQueueHandle, &indERR, 0);
+    can_tx_err_cnt++;
+    if (can_tx_err_cnt > 9)
     {
-      uint16_t indERR = ( 100 << 8 ) + err_pin;
-      xQueueSend(indicatorQueueHandle, &indERR, 0);
+      can_tx_err_cnt = 0;
+      CAN_GO_Offline();
+
+      if (cdcActive)
+      {
+        cdcActive = !cdcActive;
+        xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
+      }
+      return;
     }
   }
 
   if (HAL_CAN_AddTxMessage(&hcan, &TxHeader, data, &TxMailbox) != HAL_OK)
   {
-    Error_Handler();
+    indERR = ( 255 << 8 ) + err_pin;
+    xQueueSend(indicatorQueueHandle, &indERR, 0);
   }
   else
   {
-    uint16_t indTX = ( 10 << 8 ) + tx_pin;
+    indTX = ( 10 << 8 ) + tx_pin;
     xQueueSend(indicatorQueueHandle, &indTX, 0);
   }
 }
@@ -226,8 +264,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
   else
   {
-    uint16_t indRX = (10 << 8) + rx_pin;
-    BaseType_t xHigherPriorityTaskWoken;
+	can_offline = false;
+    indRX = (10 << 8) + rx_pin;
     xQueueSendFromISR(indicatorQueueHandle, &indRX, &xHigherPriorityTaskWoken);
   }
 
