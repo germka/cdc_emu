@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "main.h": "c"
-    }
+        "main.h": "c",
+        "cmsis_os.h": "c"
+    },
+    "makefile.makefilePath": "${workspaceFolder}\\Debug\\makefile",
+    "makefile.makePath": "make"
 }

@@ -73,11 +73,11 @@ void MX_CAN_Init(void)
   hcan.Init.TimeSeg1 = CAN_BS1_15TQ;
   hcan.Init.TimeSeg2 = CAN_BS2_5TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
-  hcan.Init.AutoBusOff = DISABLE;
-  hcan.Init.AutoWakeUp = DISABLE;
+  hcan.Init.AutoBusOff = ENABLE;
+  hcan.Init.AutoWakeUp = ENABLE;
   hcan.Init.AutoRetransmission = ENABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
-  hcan.Init.TransmitFifoPriority = DISABLE;
+  hcan.Init.TransmitFifoPriority = ENABLE;
   if (HAL_CAN_Init(&hcan) != HAL_OK)
   {
     Error_Handler();
@@ -206,6 +206,7 @@ void CAN_GO_Offline(void)
 {
   can_offline = true;
   xQueueReset(canEventQueueHandle);
+  
   for (uint8_t i = HAL_CAN_GetTxMailboxesFreeLevel(&hcan); i < 3; i++)
   {
     if (HAL_CAN_AbortTxRequest(&hcan, TxMailbox) != HAL_OK)
@@ -226,6 +227,7 @@ void CAN_Send_Data(uint32_t ID, uint8_t data[CAN_DATA_LEN])
   {
     indERR = ( 30 << 8 ) + err_pin;
     xQueueSend(indicatorQueueHandle, &indERR, 0);
+    
     can_tx_err_cnt++;
     if (can_tx_err_cnt > 9)
     {
@@ -235,13 +237,12 @@ void CAN_Send_Data(uint32_t ID, uint8_t data[CAN_DATA_LEN])
       if (cdcActive)
       {
         cdcActive = !cdcActive;
-        xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
+        xSemaphoreGive(powerStateHandle);
       }
       return;
     }
   }
-
-  if (HAL_CAN_AddTxMessage(&hcan, &TxHeader, data, &TxMailbox) != HAL_OK)
+  else if (HAL_CAN_AddTxMessage(&hcan, &TxHeader, data, &TxMailbox) != HAL_OK)
   {
     indERR = ( 255 << 8 ) + err_pin;
     xQueueSend(indicatorQueueHandle, &indERR, 0);

@@ -472,7 +472,6 @@ void StartCdcCtlTask(void const * argument)
 #ifdef UART_LOGGING
         uart_log("[ctl] Received cdc [%s] event", "ON");
 #endif
-//        audioPower(cdcActive);
         break;
       case 0x14: // CDC = OFF (Back to Radio or Tape mode)
         cdcActive = false;
@@ -480,7 +479,6 @@ void StartCdcCtlTask(void const * argument)
 #ifdef UART_LOGGING
         uart_log("[ctl] Received cdc [%s] event", "OFF");
 #endif
-//        audioPower(cdcActive);
         break;
       case 0x35: // Seek >>
         NextTrack();
@@ -598,7 +596,7 @@ void StartCanSenderTask(void const * argument)
     {
       if (canEvent.data_ptr != NULL && canEvent.data_len >= CAN_DATA_LEN)
       {
-	    frameCount = canEvent.data_len / CAN_DATA_LEN;
+	      frameCount = canEvent.data_len / CAN_DATA_LEN;
 
         for (uint8_t i = 1; i <= frameCount; i++)
         {
@@ -632,6 +630,7 @@ void StartAudioPwrMngTask(void const * argument)
   /* USER CODE BEGIN StartAudioPwrMngTask */
   /* Infinite loop */
   const TickType_t xTicksToWait = pdMS_TO_TICKS(500);
+  bool lastStatus = false;
 
   for (;;)
   {
@@ -639,13 +638,18 @@ void StartAudioPwrMngTask(void const * argument)
     if (xSemaphoreTake(powerStateHandle, xTicksToWait) == pdTRUE)
     {
       audioPower(cdcActive);
+      lastStatus = cdcActive;
 #ifdef UART_LOGGING
       uart_log("[pwr] Switch audio [%s]", cdcActive ? "ON" : "OFF");
 #endif
     }
     else
     {
-      osDelay(10);
+      if (lastStatus != cdcActive)
+      {
+        audioPower(cdcActive);
+        lastStatus = cdcActive;
+      }
     }
   }
   /* USER CODE END StartAudioPwrMngTask */
