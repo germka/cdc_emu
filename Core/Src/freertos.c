@@ -270,7 +270,7 @@ void StartDefaultTask(void const * argument)
 
     if (!can_offline && sysTick > eventTime)
     {
-      eventTime += CDC_STATUS_TX_BASETIME;
+      eventTime = sysTick + CDC_STATUS_TX_BASETIME;
       cdcStatusEvent.data_ptr = cdcActive ? cdcActiveStatus : cdcInactiveStatus;
       cdcStatusEvent.data_len = sizeof(cdcActiveStatus);
       xQueueSendToBack(canEventQueueHandle, &cdcStatusEvent, 0);
