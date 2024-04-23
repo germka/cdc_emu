@@ -55,7 +55,7 @@ void audioPower(bool state)
 {
   if (state &&
       (!HAL_GPIO_ReadPin(BTEN_GPIO_Port, BTEN_Pin) ||
-       !HAL_GPIO_ReadPin(AMPEN_GPIO_Port, AMPEN_Pin)))
+       !HAL_GPIO_ReadPin(AMPENA_GPIO_Port, AMPENA_Pin)))
   {
     HAL_GPIO_WritePin(BTEN_GPIO_Port, BTEN_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(AMPENA_GPIO_Port, AMPENA_Pin, GPIO_PIN_SET);
