@@ -608,7 +608,7 @@ void StartCanSenderTask(void const * argument)
           }
           else
           {
-            osDelay(30);
+            osDelay(20);
           }
         }
         memset(&canEvent, 0, sizeof(canEvent));
@@ -635,6 +635,7 @@ void StartAudioPwrMngTask(void const * argument)
   for (;;)
   {
     osDelay(10);
+    // Instant power switch
     if (xSemaphoreTake(powerStateHandle, xTicksToWait) == pdTRUE)
     {
       audioPower(cdcActive);
@@ -643,13 +644,10 @@ void StartAudioPwrMngTask(void const * argument)
       uart_log("[pwr] Switch audio [%s]", cdcActive ? "ON" : "OFF");
 #endif
     }
-    else
+    else if (lastStatus != cdcActive) // Auto switch
     {
-      if (lastStatus != cdcActive)
-      {
-        audioPower(cdcActive);
-        lastStatus = cdcActive;
-      }
+      audioPower(cdcActive);
+      lastStatus = cdcActive;
     }
   }
   /* USER CODE END StartAudioPwrMngTask */

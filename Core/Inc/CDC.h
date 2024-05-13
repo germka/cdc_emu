@@ -24,8 +24,8 @@
  * Modified on: May 25, 2021
  */
 
-#ifndef CDC_H
-#define CDC_H
+#ifndef __CDC_H__
+#define __CDC_H__
 #pragma once
 
 /**
@@ -83,6 +83,7 @@
  * Pedals & Gear
  */
 #define REVERS_ON	0x02
+#define ENGINE_ON	0xC0
 
 /**
  * frame parameters
@@ -126,4 +127,4 @@
 #define SOUND_ALERT                 0x40    // Short "Ding-Dong"
 
 
-#endif
+#endif	// __CDC_H__

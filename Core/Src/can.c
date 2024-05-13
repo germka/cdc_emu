@@ -51,6 +51,7 @@ uint16_t indERR;
 
 uint8_t can_tx_err_cnt = 0;
 bool can_offline = false;
+bool reverse_gear = false;
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -176,6 +177,18 @@ void CAN_User_Config(void)
     Error_Handler();
   }
 
+  sFilterConfig.FilterBank = 1;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+  sFilterConfig.FilterIdHigh = 0x0280<<5;     // Rear gear state      // PEDALS_GEAR
+  sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+  sFilterConfig.FilterActivation = ENABLE;
+
+  if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  
   /* Start the CAN peripheral */
   if (HAL_CAN_Start(&hcan) != HAL_OK)
   {
@@ -297,11 +310,27 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   case DISPLAY_RESOURCE_GRANT:
     if ((RxData[0] == (DESIRED_ROW & 0x0F)) && (RxData[1] == NODE_SID_FUNCTION_ID))
     {
-//      if (xSemaphoreGive(allowTextSemaphoreHandle) != pdPASS)
-//      {
-//        Error_Handler();
-//      }
+    //  if (xSemaphoreGiveFromISR(allowTextSemaphoreHandle, &xHigherPriorityTaskWoken) != pdPASS)
+    //  {
+    //    Error_Handler();
+    //  }
     }
+    break;
+  case PEDALS_GEAR:
+    if (RxData[0] == 0x80)  // State changed
+      {
+        if (RxData[1] == REVERS_ON && RxData[5] == ENGINE_ON)
+        {
+          // Disable AMP power
+          reverse_gear = true;
+        }
+        else
+        {
+          // Enable AMP
+          reverse_gear = false;
+        }
+        xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
+      }
     break;
   default:
     break;

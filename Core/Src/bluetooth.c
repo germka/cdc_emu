@@ -1,6 +1,6 @@
 /**
  * @file bluetooth.c
- * @author Evgeniy Shabin (you@domain.com)
+ * @author Evgeniy Shabin (germka@gmail.com)
  * @brief Bluetooth control program module
  * @version 0.1
  * @date 2024-03-04
@@ -10,6 +10,8 @@
  */
 
 #include "bluetooth.h"
+
+extern bool reverse_gear;
 
 void NextTrack(void)
 {
@@ -53,18 +55,17 @@ void PlayPause(void)
  */
 void audioPower(bool state)
 {
-  if (state &&
-      (!HAL_GPIO_ReadPin(BTEN_GPIO_Port, BTEN_Pin) ||
-       !HAL_GPIO_ReadPin(AMPEN_GPIO_Port, AMPEN_Pin)))
+  if (state)
   {
     HAL_GPIO_WritePin(BTEN_GPIO_Port, BTEN_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(AMPEN_GPIO_Port, AMPEN_Pin, GPIO_PIN_SET);
+    // Does not enable if reverse gear ON and engine ON
+    HAL_GPIO_WritePin(AMPEN_GPIO_Port, AMPEN_Pin, reverse_gear ? GPIO_PIN_RESET : GPIO_PIN_SET);
     if (CONFIRMATION_SOUND)
     {
       Beep(0x04);
     }
   }
-  else if (!state)
+  else
   {
     HAL_GPIO_WritePin(BTEN_GPIO_Port, BTEN_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(AMPEN_GPIO_Port, AMPEN_Pin, GPIO_PIN_RESET);

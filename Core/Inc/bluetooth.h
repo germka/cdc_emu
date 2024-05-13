@@ -1,3 +1,14 @@
+/**
+ * @file bluetooth.h
+ * @author Evgeniy Shabin (germka@gmail.com)
+ * @brief Bluetooth control program module
+ * @version 0.1
+ * @date 2024-03-04
+ * 
+ * @copyright Copyright (c) 2024
+ * 
+ */
+
 #ifndef __BLUETOOTH_H__
 #define __BLUETOOTH_H__
 #pragma once
@@ -45,12 +56,12 @@ void audioPower(bool state);
 /*
  * CSR States
  */
-#define CONNECTABLE		      1
+#define CONNECTABLE		    1
 #define CONNBLE_DISCTED	    2
-#define	CONNECTED		        3
-#define OUT_CALL		        4
-#define INC_CALL		        5
-#define ACTIVE_CALL		      6
+#define	CONNECTED		    3
+#define OUT_CALL		    4
+#define INC_CALL		    5
+#define ACTIVE_CALL		    6
 #define A2DP_STREAMING	    7
 
 #endif // __BLUETOOTH_H__
