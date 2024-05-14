@@ -278,27 +278,6 @@ void StartDefaultTask(void const * argument)
       uart_log("[can] Sending cdc [%s] status", cdcActive ? "active" : "inactive");
 #endif
     }
-#if 0
-    if (sysTick > canRXTimestamp + 5000)
-	{
-    	canRXTimestamp = osKernelSysTick();
-    	portSUPPRESS_TICKS_AND_SLEEP(pdMS_TO_TICKS(500));
-	}
-#endif
-#ifdef POWER_SAVE_MODE
-    if (sysTick > canRXTimestamp + CAN_INACTIVE_TIMEOUT)
-    {
-      cdcActive = false;
-      xSemaphoreGive(powerStateHandle);
-      // Wait for gpio have effect
-      osDelay(10);
-#ifdef UART_LOGGING
-      uart_log("[pwr] Switch to power save mode");
-#endif
-      // Save systick for resume success
-      canRXTimestamp = osKernelSysTick();
-    }
-#endif
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -537,10 +516,10 @@ void StartWheelBtnHandleTask(void const * argument)
         PlayPause();
         break;
       case SEEK_NEXT: // Seek >> button on wheel
-        // NextTrack();	// Reserved for long press and seek
+        // NextTrack();  // Reserved for long press and seek
         break;
       case SEEK_PREV: // Seek << button on wheel
-        // PrevTrack();	// Reserved for long press and seek
+        // PrevTrack();  // Reserved for long press and seek
         break;
       default:
         break;
@@ -596,7 +575,7 @@ void StartCanSenderTask(void const * argument)
     {
       if (canEvent.data_ptr != NULL && canEvent.data_len >= CAN_DATA_LEN)
       {
-	      frameCount = canEvent.data_len / CAN_DATA_LEN;
+        frameCount = canEvent.data_len / CAN_DATA_LEN;
 
         for (uint8_t i = 1; i <= frameCount; i++)
         {
@@ -732,40 +711,6 @@ void writeTextOnDisplay(char message[15])
     }
   }
 }
-
-#if 0
-/**
- * @brief Set core to sleep power save mode
- * Wake up from any interrupt
- */
-void enterSleep(void)
-{
-#ifdef UART_LOGGING
-  uart_log("[pwr] Switch to power save mode");
-#endif
-#ifdef POWER_SAVE_MODE
-  // Save systick for resume success
-  canRXTimestamp = osKernelSysTick();
-  HAL_SuspendTick();
-  HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-  HAL_ResumeTick();
-#endif
-}
-
-/**
- * @brief Resume core from power save mode
- * 
- */
-void resumeWork(void)
-{
-#ifdef POWER_SAVE_MODE
-  HAL_ResumeTick();
-#endif
-#ifdef UART_LOGGING
-  uart_log("[pwr] Switch to normal mode");
-#endif
-}
-#endif
 
 /* USER CODE END Application */
 

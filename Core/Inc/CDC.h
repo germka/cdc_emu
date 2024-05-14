@@ -61,29 +61,29 @@
 /**
  * STEERING WHEEL BUTTONS
  */
-#define VOL_DOWN 	0x80
-#define VOL_UP 		0x40
-#define SRC	 		0x20
-#define SEEK_NEXT 	0x10
-#define SEEK_PREV 	0x08
-#define NEXT 		0x04
+#define VOL_DOWN    0x80
+#define VOL_UP      0x40
+#define SRC         0x20
+#define SEEK_NEXT   0x10
+#define SEEK_PREV   0x08
+#define NEXT        0x04
 
 /**
  * SID BUTTONS
  */
-#define CLR			0x80
-#define SET			0x40
-#define DOWN		0x20
-#define UP			0x10
-#define NPANEL		0x08
-#define CLOCK_UP	0x04
-#define CLOCK_DOWN	0x02
+#define CLR         0x80
+#define SET         0x40
+#define DOWN        0x20
+#define UP          0x10
+#define NPANEL      0x08
+#define CLOCK_UP    0x04
+#define CLOCK_DOWN  0x02
 
 /**
  * Pedals & Gear
  */
-#define REVERS_ON	0x02
-#define ENGINE_ON	0xC0
+#define REVERS_ON   0x02
+#define ENGINE_ON   0xC0
 
 /**
  * frame parameters
@@ -106,12 +106,12 @@
 #define DISPLAY_RESOURCE_GRANT      0x368
 #define NODE_STATUS_RX_IHU          0x6A1
 #define STEERING_WHEEL_BUTTONS      0x290
-#define PEDALS_GEAR					0x280
+#define PEDALS_GEAR                 0x280
 
 /**
  * Timer definitions:
  */
-#define NODE_STATUS_TX_DELAY		10
+#define NODE_STATUS_TX_DELAY        10
 #define NODE_STATUS_TX_INTERVAL     140     // Replies to '6A1' request need to be sent with no more than 140ms interval; tolerances +/- 10%
 #define CDC_STATUS_TX_BASETIME      950     // The CDC status frame must be sent periodically within this timeframe; tolerances +/- 10%
 #define SID_CONTROL_TX_BASETIME     1000    // SID control/resource request frames needs to be sent within this timeframe; tolerances +/- 10%
@@ -127,4 +127,4 @@
 #define SOUND_ALERT                 0x40    // Short "Ding-Dong"
 
 
-#endif	// __CDC_H__
+#endif  // __CDC_H__

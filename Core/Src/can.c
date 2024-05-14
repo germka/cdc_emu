@@ -51,7 +51,7 @@ uint16_t indERR;
 
 uint8_t can_tx_err_cnt = 0;
 bool can_offline = false;
-bool reverse_gear = false;
+bool R_gear_on = false;
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -232,7 +232,7 @@ void CAN_GO_Offline(void)
 void CAN_Send_Data(uint32_t ID, uint8_t data[CAN_DATA_LEN])
 {
   TxHeader.StdId = ID;
-#if 0	// debug offline mode
+#if 0  // debug offline mode
   uint8_t m_cnt = uxQueueMessagesWaiting(canEventQueueHandle);
   uint8_t e_cnt = uxQueueMessagesWaiting(indicatorQueueHandle);
 #endif
@@ -278,7 +278,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
   else
   {
-	can_offline = false;
+    can_offline = false;
     indRX = (10 << 8) + rx_pin;
     xQueueSendFromISR(indicatorQueueHandle, &indRX, &xHigherPriorityTaskWoken);
   }
@@ -318,19 +318,19 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     break;
   case PEDALS_GEAR:
     if (RxData[0] == 0x80)  // State changed
+    {
+      if (RxData[1] == REVERS_ON) // && RxData[5] == ENGINE_ON)
       {
-        if (RxData[1] == REVERS_ON && RxData[5] == ENGINE_ON)
-        {
-          // Disable AMP power
-          reverse_gear = true;
-        }
-        else
-        {
-          // Enable AMP
-          reverse_gear = false;
-        }
+        // Disable AMP power
+        R_gear_on = true;
         xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
       }
+      else
+      {
+        // Enable AMP
+        R_gear_on = false;
+      }
+    }
     break;
   default:
     break;
