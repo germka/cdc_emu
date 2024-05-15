@@ -471,7 +471,6 @@ void StartCdcCtlTask(void const * argument)
         break;
       case 0x46: // SEEK- button long press on IHU
         break;
-        ;
       case 0x84: // SEEK button (middle) long press on IHU
         break;
       case 0x88: // > 2 second long press of SEEK button (middle) on IHU
@@ -587,7 +586,7 @@ void StartCanSenderTask(void const * argument)
           }
           else
           {
-            osDelay(20);
+            osDelay(NODE_STATUS_TX_DELAY);
           }
         }
         memset(&canEvent, 0, sizeof(canEvent));

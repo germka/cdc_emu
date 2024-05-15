@@ -181,6 +181,9 @@ void CAN_User_Config(void)
   sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
   sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
   sFilterConfig.FilterIdHigh = 0x0280<<5;     // Rear gear state      // PEDALS_GEAR
+  sFilterConfig.FilterIdLow = 0x03E0<<5;      // CD Changer control   // AUTOMATIC_GEARBOX
+  sFilterConfig.FilterMaskIdHigh = 0x04A0<<5; // Steering wheel, VIN  // VIN_STATUS_TRIONIC
+  sFilterConfig.FilterMaskIdLow = 0x0;
   sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
   sFilterConfig.FilterActivation = ENABLE;
 
@@ -289,13 +292,13 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     xQueueSendToBackFromISR(nodeStatusQueueHandle, &RxData[3], 0);
     break;
   case CDC_CONTROL:
-    if (RxData[0] == 0x80)
+    if (RxData[0] == STATE_CHANGED)
     {
       xQueueSendToBackFromISR(cdcCtlQueueHandle, &RxData[1], 0);
     }
     break;
   case STEERING_WHEEL_BUTTONS:
-    if (RxData[0] == 0x80)
+    if (RxData[0] == STATE_CHANGED)
     {
       if (RxData[2] != 0x00)
       {
@@ -316,10 +319,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     //  }
     }
     break;
-  case PEDALS_GEAR:
-    if (RxData[0] == 0x80)  // State changed
+  case AUTOMATIC_GEARBOX:
+    if (RxData[0] == STATE_CHANGED)
     {
-      if (RxData[1] == REVERS_ON) // && RxData[5] == ENGINE_ON)
+      if (RxData[1] == GEAR_REVERSE)
       {
         // Disable AMP power
         R_gear_on = true;
@@ -332,6 +335,22 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       }
     }
     break;
+  case PEDALS_GEAR:
+    if (RxData[0] == STATE_CHANGED)  // State changed
+    {
+      if (RxData[1] == REVERS_ON && RxData[5] == ENGINE_ON)
+      {
+        // Disable AMP power
+        // R_gear_on = true;
+        // xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
+      }
+      else
+      {
+        // Enable AMP
+        // R_gear_on = false;
+      }
+    }
+    break;
   default:
     break;
   }
@@ -340,10 +359,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 void Beep(uint8_t type)
 {
-  //0x04    Short "Beep"
-  //0x08    "Tack"
-  //0x10    "Tick"
-  //0x40    Short "Ding-Dong"
+  // 0x04    Short "Beep"
+  // 0x08    "Tack"
+  // 0x10    "Tick"
+  // 0x40    Short "Ding-Dong"
   static uint8_t msg_beep[] = {
     0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00
   };
