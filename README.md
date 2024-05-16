@@ -2,7 +2,7 @@
 
 An easy way to add new multimedia functionality to your old car, based on the STM32 microcontroller and bluetooth receiver module CSR8645, RRD-305, QCC3005, which communicates via the CAN BUS protocol and completely simulates the presence and functionality of the original device.
 
-![3d render](Pcb\3D_PCB.png)
+![3d render](Pcb/3D_PCB.png)
 
 ## Features
 
