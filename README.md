@@ -17,6 +17,16 @@ Can be installed in the original place in the trunk of the car;
 - [PSB project](https://oshwlab.com/germka/cdcemu_stm32)
 - [3D modeling](https://www.tinkercad.com/things/ilOajaed17D-saabcdcemuv20?sharecode=B5w6PaUzLr1GzISFAL70bzKVDpNO_U5eLHJtqSOlsjQ)
 
+## Compiling
+
+Project maked in STM32CubeIDE and including only user files, but system code (HAL and RTOS) can be regenerated in CubeIDE and compiled in another IDE or manualy with toolchain arm-none-eabi-gcc;
+
+## Flashing
+
+For programming MCU used ST-LINK and STM32CubeProgrammer;
+
+Bluetooth reciever need to bee reconfigured to use input control levels instead impulse, CCID and another settings, you can make it with FT232 USB module [:howto:](https://bois083.wordpress.com/2016/10/08/playing-audio-files-with-csr8645-bluetooth-chip/) or with [CSR programmer](https://aliexpress.ru/item/4001285433196.html)
+
 ## TODO
 
 - Power save mode (sleep)
