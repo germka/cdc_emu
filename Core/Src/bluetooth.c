@@ -11,7 +11,8 @@
 
 #include "bluetooth.h"
 
-extern bool R_gear_on;
+extern uint8_t gear;
+extern uint8_t shift;
 
 void NextTrack(void)
 {
@@ -59,11 +60,7 @@ void audioPower(bool state)
   {
     HAL_GPIO_WritePin(BTEN_GPIO_Port, BTEN_Pin, GPIO_PIN_SET);
     // Do not enable if reverse gear ON and engine ON
-    HAL_GPIO_WritePin(AMPEN_GPIO_Port, AMPEN_Pin, R_gear_on ? GPIO_PIN_RESET : GPIO_PIN_SET);
-    if (CONFIRMATION_SOUND)
-    {
-      Beep(0x04);
-    }
+    HAL_GPIO_WritePin(AMPEN_GPIO_Port, AMPEN_Pin, gear == GEAR_REVERSE || shift == GEAR_REVERSE ? GPIO_PIN_RESET : GPIO_PIN_SET);
   }
   else
   {

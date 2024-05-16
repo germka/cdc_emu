@@ -43,6 +43,11 @@ extern osMessageQId sidBtnQueueHandle;
 extern osMessageQId canEventQueueHandle;
 extern osMessageQId indicatorQueueHandle;
 
+extern uint8_t msg_beep[8];
+extern uint8_t msg_tack[8];
+extern uint8_t msg_tick[8];
+extern uint8_t msg_ding_dong[8];
+
 BaseType_t xHigherPriorityTaskWoken;
 
 uint16_t indRX;
@@ -50,8 +55,10 @@ uint16_t indTX;
 uint16_t indERR;
 
 uint8_t can_tx_err_cnt = 0;
+uint8_t gear = 0;
+uint8_t shift = 0;
+
 bool can_offline = false;
-bool R_gear_on = false;
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -325,14 +332,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       if (RxData[1] == GEAR_REVERSE)
       {
         // Disable AMP power
-        R_gear_on = true;
-        xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
+        shift = GEAR_REVERSE;
       }
       else
       {
         // Enable AMP
-        R_gear_on = false;
+        shift = RxData[0];
       }
+      xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
     }
     break;
   case PEDALS_GEAR:
@@ -341,14 +348,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       if (RxData[1] == REVERS_ON && RxData[5] == ENGINE_ON)
       {
         // Disable AMP power
-        // R_gear_on = true;
-        // xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
+        gear = GEAR_REVERSE;
       }
       else
       {
         // Enable AMP
-        // R_gear_on = false;
+        gear = RxData[1];
       }
+      xSemaphoreGiveFromISR(powerStateHandle, &xHigherPriorityTaskWoken);
     }
     break;
   default:
@@ -359,6 +366,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 void Beep(uint8_t type)
 {
+#if 0
   // 0x04    Short "Beep"
   // 0x08    "Tack"
   // 0x10    "Tick"
@@ -368,6 +376,14 @@ void Beep(uint8_t type)
   };
   msg_beep[1] = type;
   CAN_Send_Data(SOUND_REQUEST, msg_beep);
+#else
+  can_event_t soundEvent = {0};
+  soundEvent.data_id = SOUND_REQUEST;
+  soundEvent.priority = 0;
+  soundEvent.data_ptr = msg_beep;
+  soundEvent.data_len = sizeof(msg_beep);
+  xQueueSendToBack(canEventQueueHandle, &soundEvent, 0);
+#endif
 }
 
 /* USER CODE END 1 */

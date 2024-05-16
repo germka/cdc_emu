@@ -1,7 +1,9 @@
 {
     "files.associations": {
         "main.h": "c",
-        "cmsis_os.h": "c"
+        "cmsis_os.h": "c",
+        "bluetooth.h": "c",
+        "can.h": "c"
     },
     "makefile.makefilePath": "${workspaceFolder}\\Debug\\makefile",
     "makefile.makePath": "make"

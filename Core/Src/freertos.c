@@ -51,6 +51,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+
+/* CDC messages*/
+
 uint8_t cdcActiveCmd[4][8] = {
   {0x32,0x00,0x00,0x16,0x01,0x02,0x00,0x00},
   {0x42,0x00,0x00,0x36,0x00,0x00,0x00,0x00},
@@ -82,18 +85,23 @@ uint8_t cdcInactiveStatusEvent[] = {
   0x20,0xFF,0x3F,0x00,0x00,0x00,0x00,0xD0
 };
 
+/* SID sounds messages */
+
+uint8_t msg_beep[] = {
+  0x80,0x04,0x00,0x00,0x00,0x00,0x00,0x00
+};
+uint8_t msg_tack[] = {
+  0x80,0x08,0x00,0x00,0x00,0x00,0x00,0x00
+};
+uint8_t msg_tick[] = {
+  0x80,0x10,0x00,0x00,0x00,0x00,0x00,0x00
+};
+uint8_t msg_ding_dong[] = {
+  0x80,0x40,0x00,0x00,0x00,0x00,0x00,0x00
+};
+
 bool cdcActive = false;
 uint32_t canRXTimestamp = 0;
-
-#define CAN_INACTIVE_TIMEOUT pdMS_TO_TICKS(30000)
-
-typedef struct can_event_t
-{
-  uint16_t  data_id;
-  uint8_t*  data_ptr;
-  uint8_t   data_len;
-  uint8_t   priority;
-} can_event_t;
 
 extern bool can_offline;
 
@@ -616,16 +624,27 @@ void StartAudioPwrMngTask(void const * argument)
     // Instant power switch
     if (xSemaphoreTake(powerStateHandle, xTicksToWait) == pdTRUE)
     {
+      if (lastStatus != cdcActive && CONFIRMATION_SOUND)
+      {
+        Beep(0x04);
+      }
       audioPower(cdcActive);
       lastStatus = cdcActive;
 #ifdef UART_LOGGING
       uart_log("[pwr] Switch audio [%s]", cdcActive ? "ON" : "OFF");
 #endif
     }
-    else if (lastStatus != cdcActive) // Auto switch
+    else // Auto switch every 0.5 sec
     {
+      if (lastStatus != cdcActive && CONFIRMATION_SOUND)
+      {
+        Beep(0x04);
+      }
       audioPower(cdcActive);
       lastStatus = cdcActive;
+#ifdef UART_LOGGING
+      uart_log("[pwr] Auto switch audio [%s]", cdcActive ? "ON" : "OFF");
+#endif
     }
   }
   /* USER CODE END StartAudioPwrMngTask */

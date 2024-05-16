@@ -35,7 +35,15 @@ extern "C" {
 extern CAN_HandleTypeDef hcan;
 
 /* USER CODE BEGIN Private defines */
+#define CAN_INACTIVE_TIMEOUT pdMS_TO_TICKS(30000)
 
+typedef struct can_event_t
+{
+  uint16_t  data_id;
+  uint8_t*  data_ptr;
+  uint8_t   data_len;
+  uint8_t   priority;
+} can_event_t;
 /* USER CODE END Private defines */
 
 void MX_CAN_Init(void);
