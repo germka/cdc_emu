@@ -27,7 +27,19 @@ Project maked in STM32CubeIDE and including only user files, but system code (HA
 
 For programming MCU used ST-LINK and STM32CubeProgrammer;
 
-Bluetooth reciever need to bee reconfigured to use input control levels instead impulse, CCID and another settings, you can make it with FT232 USB module [:howto:](https://bois083.wordpress.com/2016/10/08/playing-audio-files-with-csr8645-bluetooth-chip/) or with [CSR programmer](https://aliexpress.ru/item/4001285433196.html)
+Bluetooth reciever need to bee reconfigured to use input control levels instead impulse, CCID and another settings, you can make it with FT232 USB module [:howto:](https://bois083.wordpress.com/2016/10/08/playing-audio-files-with-csr8645-bluetooth-chip/) or with CSR programmer;
+
+CSR programmer can use developer sowtware (ADK_CSR867x, ADK_QCC300x) and configure the chip for maximum performance, ft232 can use HeadsetConfigToolS and BlueSuite with low perfomance and the probability of errors;
+
+## Hardware
+
+- Standard CDC harness `827229-1` [aliexpress](https://aliexpress.ru/wholesale?SearchText=827229-1)
+- Standard CDC dual harness (2002+) `1-962344-1` [2 pin](https://aliexpress.ru/wholesale?SearchText=1-962344-1) `1-965426-1` [4 pin](https://aliexpress.ru/wholesale?SearchText=1-965426-1)
+- PCB order [link](https://jlcpcb.com/) or [link for RU and BY](https://www.pcbwave.com/)
+- CSR programmer [link](https://aliexpress.ru/wholesale?SearchText=CSR+Bluetooth+burner)
+- bluetooth module [link](https://aliexpress.ru/wholesale?SearchText=RRD305)
+- Electronic components (use bom file) [link](https://www.lcsc.com/) or [ChipDip](https://www.chipdip.ru/)
+- ST-LINK [link](https://aliexpress.ru/wholesale?SearchText=st-link)
 
 ## TODO
 
