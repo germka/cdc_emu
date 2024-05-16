@@ -1,6 +1,6 @@
 # SAAB compact disk changer emulator
 
-An easy way to add new multimedia functionality to your old car, based on the STM32 microcontroller and bluetooth receiver module CSR8645, RRD-305, QCC3005, which communicates via the CAN BUS protocol and completely simulates the presence and functionality of the original device.
+An easy way to add new multimedia functionality to your old car, based on the STM32 microcontroller and bluetooth receiver module with Apt-X/AAC support (CSR8645, RRD-305, QCC3005) which communicates via the CAN BUS protocol and completely simulates the presence and functionality of the original device.
 
 ![3d render](Pcb/3D_PCB.png)
 
@@ -16,12 +16,12 @@ Can be installed in the original place in the trunk of the car;
 
 ## Documentation
 
-- [PSB project](https://oshwlab.com/germka/cdcemu_stm32)
+- [PCB project](https://oshwlab.com/germka/cdcemu_stm32)
 - [3D modeling](https://www.tinkercad.com/things/ilOajaed17D-saabcdcemuv20?sharecode=B5w6PaUzLr1GzISFAL70bzKVDpNO_U5eLHJtqSOlsjQ)
 
 ## Compiling
 
-Project maked in STM32CubeIDE and including only user files, but system code (HAL and RTOS) can be regenerated in CubeIDE and compiled in another IDE or manualy with toolchain arm-none-eabi-gcc;
+Project maked in STM32CubeIDE and including only user files, but system code (HAL and RTOS) can be regenerated in STM32Cube and compiled in another IDE or manualy with toolchain arm-none-eabi-gcc;
 
 ## Flashing
 
@@ -32,3 +32,7 @@ Bluetooth reciever need to bee reconfigured to use input control levels instead 
 ## TODO
 
 - Power save mode (sleep)
+
+## Known issues
+
+- To use Hands-Free Profile with a standard microphone, you need to lay a cable in the trunk of the car from the multimedia device;
