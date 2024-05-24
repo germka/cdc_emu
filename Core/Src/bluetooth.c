@@ -18,7 +18,7 @@ void NextTrack(void)
 {
   if (CONFIRMATION_SOUND)
   {
-    Beep(0x08);
+    Beep(SOUND_TAC);
   }
   HAL_GPIO_WritePin(NEXT_GPIO_Port, NEXT_Pin, 1);
   osDelay(CSR_SHORT_PRESS);
@@ -29,7 +29,7 @@ void PrevTrack(void)
 {
   if (CONFIRMATION_SOUND)
   {
-    Beep(0x10);
+    Beep(SOUND_TIC);
   }
   HAL_GPIO_WritePin(PREV_GPIO_Port, PREV_Pin, 1);
   osDelay(CSR_SHORT_PRESS);
@@ -40,7 +40,7 @@ void PlayPause(void)
 {
   if (CONFIRMATION_SOUND)
   {
-    Beep(0x10);
+    Beep(SOUND_TIC);
   }
   HAL_GPIO_WritePin(PLAY_GPIO_Port, PLAY_Pin, 1);
   osDelay(CSR_SHORT_PRESS);

@@ -46,6 +46,7 @@ extern osMessageQId indicatorQueueHandle;
 extern uint8_t msg_beep[8];
 extern uint8_t msg_tack[8];
 extern uint8_t msg_tick[8];
+extern uint8_t msg_seatbelt[8];
 extern uint8_t msg_ding_dong[8];
 
 BaseType_t xHigherPriorityTaskWoken;
@@ -366,24 +367,32 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 void Beep(uint8_t type)
 {
-#if 0
-  // 0x04    Short "Beep"
-  // 0x08    "Tack"
-  // 0x10    "Tick"
-  // 0x40    Short "Ding-Dong"
-  static uint8_t msg_beep[] = {
-    0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-  };
-  msg_beep[1] = type;
-  CAN_Send_Data(SOUND_REQUEST, msg_beep);
-#else
   can_event_t soundEvent = {0};
+  switch (type)
+  {
+  case SOUND_ACK:
+    soundEvent.data_ptr = msg_beep;
+    break;
+  case SOUND_TAC:
+    soundEvent.data_ptr = msg_tack;
+    break;
+  case SOUND_TIC:
+    soundEvent.data_ptr = msg_tick;
+    break;
+  case SOUND_SEATBELT:
+    soundEvent.data_ptr = msg_seatbelt;
+    break;
+  case SOUND_ALERT:
+    soundEvent.data_ptr = msg_ding_dong;
+    break;
+  default:
+    soundEvent.data_ptr = msg_beep;
+    break;
+  }
   soundEvent.data_id = SOUND_REQUEST;
   soundEvent.priority = 0;
-  soundEvent.data_ptr = msg_beep;
-  soundEvent.data_len = sizeof(msg_beep);
+  soundEvent.data_len = CAN_DATA_LEN;
   xQueueSendToBack(canEventQueueHandle, &soundEvent, 0);
-#endif
 }
 
 /* USER CODE END 1 */

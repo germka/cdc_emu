@@ -6,5 +6,5 @@
         "can.h": "c"
     },
     "makefile.makefilePath": "${workspaceFolder}\\Debug\\makefile",
-    "makefile.makePath": "make"
+    "makefile.makePath": "C:\\Program Files (x86)\\GnuWin32\\bin\\make.exe"
 }

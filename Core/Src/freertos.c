@@ -96,6 +96,9 @@ uint8_t msg_tack[] = {
 uint8_t msg_tick[] = {
   0x80,0x10,0x00,0x00,0x00,0x00,0x00,0x00
 };
+uint8_t msg_seatbelt[] = {
+  0x80,0x20,0x00,0x00,0x00,0x00,0x00,0x00
+};
 uint8_t msg_ding_dong[] = {
   0x80,0x40,0x00,0x00,0x00,0x00,0x00,0x00
 };
@@ -626,7 +629,7 @@ void StartAudioPwrMngTask(void const * argument)
     {
       if (lastStatus != cdcActive && CONFIRMATION_SOUND)
       {
-        Beep(0x04);
+        Beep(SOUND_ACK);
       }
       audioPower(cdcActive);
       lastStatus = cdcActive;
@@ -638,7 +641,7 @@ void StartAudioPwrMngTask(void const * argument)
     {
       if (lastStatus != cdcActive && CONFIRMATION_SOUND)
       {
-        Beep(0x04);
+        Beep(SOUND_ACK);
       }
       audioPower(cdcActive);
       lastStatus = cdcActive;
