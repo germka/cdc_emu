@@ -43,6 +43,12 @@ extern osMessageQId sidBtnQueueHandle;
 extern osMessageQId canEventQueueHandle;
 extern osMessageQId indicatorQueueHandle;
 
+extern uint8_t msg_beep[8];
+extern uint8_t msg_tack[8];
+extern uint8_t msg_tick[8];
+extern uint8_t msg_seatbelt[8];
+extern uint8_t msg_ding_dong[8];
+
 BaseType_t xHigherPriorityTaskWoken;
 
 uint16_t indRX;
@@ -265,7 +271,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
   else
   {
-	can_offline = false;
+    can_offline = false;
     indRX = (10 << 8) + rx_pin;
     xQueueSendFromISR(indicatorQueueHandle, &indRX, &xHigherPriorityTaskWoken);
   }
@@ -276,13 +282,13 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     xQueueSendToBackFromISR(nodeStatusQueueHandle, &RxData[3], 0);
     break;
   case CDC_CONTROL:
-    if (RxData[0] == 0x80)
+    if (RxData[0] == STATE_CHANGED)
     {
       xQueueSendToBackFromISR(cdcCtlQueueHandle, &RxData[1], 0);
     }
     break;
   case STEERING_WHEEL_BUTTONS:
-    if (RxData[0] == 0x80)
+    if (RxData[0] == STATE_CHANGED)
     {
       if (RxData[2] != 0x00)
       {
@@ -308,18 +314,34 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
 }
 
-
 void Beep(uint8_t type)
 {
-  //0x04    Short "Beep"
-  //0x08    "Tack"
-  //0x10    "Tick"
-  //0x40    Short "Ding-Dong"
-  static uint8_t msg_beep[] = {
-    0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-  };
-  msg_beep[1] = type;
-  CAN_Send_Data(SOUND_REQUEST, msg_beep);
+  can_event_t soundEvent = {0};
+  switch (type)
+  {
+  case SOUND_ACK:
+    soundEvent.data_ptr = msg_beep;
+    break;
+  case SOUND_TAC:
+    soundEvent.data_ptr = msg_tack;
+    break;
+  case SOUND_TIC:
+    soundEvent.data_ptr = msg_tick;
+    break;
+  case SOUND_SEATBELT:
+    soundEvent.data_ptr = msg_seatbelt;
+    break;
+  case SOUND_ALERT:
+    soundEvent.data_ptr = msg_ding_dong;
+    break;
+  default:
+    soundEvent.data_ptr = msg_beep;
+    break;
+  }
+  soundEvent.data_id = SOUND_REQUEST;
+  soundEvent.priority = 0;
+  soundEvent.data_len = CAN_DATA_LEN;
+  xQueueSendToBack(canEventQueueHandle, &soundEvent, 0);
 }
 
 /* USER CODE END 1 */

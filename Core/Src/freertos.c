@@ -82,18 +82,28 @@ uint8_t cdcInactiveStatusEvent[] = {
   0x20,0xFF,0x3F,0x00,0x00,0x00,0x00,0xD0
 };
 
+/* SID sounds messages */
+
+uint8_t msg_beep[] = {
+  0x80,0x04,0x00,0x00,0x00,0x00,0x00,0x00
+};
+uint8_t msg_tack[] = {
+  0x80,0x08,0x00,0x00,0x00,0x00,0x00,0x00
+};
+uint8_t msg_tick[] = {
+  0x80,0x10,0x00,0x00,0x00,0x00,0x00,0x00
+};
+uint8_t msg_seatbelt[] = {
+  0x80,0x20,0x00,0x00,0x00,0x00,0x00,0x00
+};
+uint8_t msg_ding_dong[] = {
+  0x80,0x40,0x00,0x00,0x00,0x00,0x00,0x00
+};
+
 bool cdcActive = false;
 uint32_t canRXTimestamp = 0;
 
 #define CAN_INACTIVE_TIMEOUT pdMS_TO_TICKS(30000)
-
-typedef struct can_event_t
-{
-  uint16_t  data_id;
-  uint8_t*  data_ptr;
-  uint8_t   data_len;
-  uint8_t   priority;
-} can_event_t;
 
 extern bool can_offline;
 
@@ -458,7 +468,11 @@ void StartCdcCtlTask(void const * argument)
   /* USER CODE BEGIN StartCdcCtlTask */
   const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
   uint8_t ReceivedValue;
-  /* Infinite loop */
+
+  can_event_t statusCanEvent = {0};
+  statusCanEvent.data_id = GENERAL_STATUS_CDC;
+  statusCanEvent.priority = 0;
+/* Infinite loop */
   for (;;)
   {
     osDelay(10);
@@ -469,6 +483,9 @@ void StartCdcCtlTask(void const * argument)
       case 0x24: // CDC = ON (CD/RDM button has been pressed twice)
         cdcActive = true;
         xSemaphoreGive(powerStateHandle);
+        statusCanEvent.data_ptr = (uint8_t *) cdcActiveStatusEvent;
+        statusCanEvent.data_len = sizeof(cdcActiveStatusEvent);
+        xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
 #ifdef UART_LOGGING
         uart_log("[ctl] Received cdc [%s] event", "ON");
 #endif
@@ -476,6 +493,9 @@ void StartCdcCtlTask(void const * argument)
       case 0x14: // CDC = OFF (Back to Radio or Tape mode)
         cdcActive = false;
         xSemaphoreGive(powerStateHandle);
+        statusCanEvent.data_ptr = (uint8_t *) cdcInactiveStatusEvent;
+        statusCanEvent.data_len = sizeof(cdcInactiveStatusEvent);
+        xQueueSendToBack(canEventQueueHandle, &statusCanEvent, 0);
 #ifdef UART_LOGGING
         uart_log("[ctl] Received cdc [%s] event", "OFF");
 #endif
@@ -492,7 +512,6 @@ void StartCdcCtlTask(void const * argument)
         break;
       case 0x46: // SEEK- button long press on IHU
         break;
-        ;
       case 0x84: // SEEK button (middle) long press on IHU
         break;
       case 0x88: // > 2 second long press of SEEK button (middle) on IHU
@@ -635,21 +654,30 @@ void StartAudioPwrMngTask(void const * argument)
   for (;;)
   {
     osDelay(10);
+    // Instant power switch
     if (xSemaphoreTake(powerStateHandle, xTicksToWait) == pdTRUE)
     {
+      if (lastStatus != cdcActive && CONFIRMATION_SOUND)
+      {
+        Beep(SOUND_ACK);
+      }
       audioPower(cdcActive);
       lastStatus = cdcActive;
 #ifdef UART_LOGGING
       uart_log("[pwr] Switch audio [%s]", cdcActive ? "ON" : "OFF");
 #endif
     }
-    else
+    else // Auto switch every 0.5 sec
     {
-      if (lastStatus != cdcActive)
+      if (lastStatus != cdcActive && CONFIRMATION_SOUND)
       {
-        audioPower(cdcActive);
-        lastStatus = cdcActive;
+        Beep(SOUND_ACK);
       }
+      audioPower(cdcActive);
+      lastStatus = cdcActive;
+#ifdef UART_LOGGING
+      uart_log("[pwr] Auto switch audio [%s]", cdcActive ? "ON" : "OFF");
+#endif
     }
   }
   /* USER CODE END StartAudioPwrMngTask */

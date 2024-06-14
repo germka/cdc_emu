@@ -7,6 +7,7 @@
 #include "main.h"
 #include "stdbool.h"
 #include "can.h"
+#include "CDC.h"
 
 void NextTrack(void);
 void PrevTrack(void);
