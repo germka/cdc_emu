@@ -57,8 +57,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define AMPENA_Pin GPIO_PIN_0
-#define AMPENA_GPIO_Port GPIOA
 #define LEDTX_Pin GPIO_PIN_3
 #define LEDTX_GPIO_Port GPIOA
 #define LEDERR_Pin GPIO_PIN_4
