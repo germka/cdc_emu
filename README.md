@@ -50,6 +50,10 @@ The microphone input block also can be skipped if you don't use hands free profi
 - Electronic components (use bom file) [link](https://www.lcsc.com/) or [ChipDip](https://www.chipdip.ru/);
 - ST-LINK [link](https://aliexpress.ru/wholesale?SearchText=st-link);
 
+## Installing
+
+[Installing module in cars without CDC provisioning cable](http://bluesaab-forum.90.s1.nabble.com/Installing-BlueSAAB-module-in-cars-without-CDC-provisioning-cable-td1797.html)
+
 ## TODO
 
 - Power save mode (sleep);
